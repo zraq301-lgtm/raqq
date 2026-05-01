@@ -1,14 +1,12 @@
-/* الألوان الأساسية والمتغيرات - تم تحديثها لتكون أكثر أنوثة وحيوية */
+/* الألوان الأساسية والمتغيرات */
 :root {
-  --female-pink: #ff4d7d; /* وردي أعمق وأكثر حيوية */
+  --female-pink: #ff4d7d; 
   --female-pink-light: rgba(255, 77, 125, 0.15);
-  --soft-bg: #fff5f7; /* خلفية وردية هادئة جداً */
+  --soft-bg: #fff5f7; 
   --text-gray: #555;
   --glass-white: rgba(255, 255, 255, 0.9);
-  --accent-purple: #9b59b6; /* لون بنفسجي مكمل للأنوثة */
-
-  /* --- خاصية فيربيس الجديدة لتغيير الألوان --- */
-  --main-theme-color: #ffffff; /* اللون الافتراضي */
+  --accent-purple: #9b59b6; 
+  --main-theme-color: #ffffff; 
 }
 
 body {
@@ -17,92 +15,35 @@ body {
   background-color: var(--soft-bg);
   font-family: 'Tajawal', sans-serif;
   direction: rtl;
+  width: 100%;
+  overflow-x: hidden;
 }
 
-/* حاوية التطبيق الرئيسية - تم ربطها بخاصية فيربيس */
+/* حاوية التطبيق الرئيسية - توسيع العرض ليملأ الشاشة */
 .app-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
-  background-color: var(--main-theme-color); /* اللون الذي سيتم تغييره من فيربيس */
-  transition: background-color 0.5s ease; /* لجعل التغيير ناعماً */
+  min-height: 100vh;
+  width: 100vw; /* ضمان ملء عرض الشاشة بالكامل */
+  background-color: var(--main-theme-color);
+  transition: background-color 0.5s ease;
 }
 
-/* --- التنسيق المعدل: الحفاظ على حجم الأيقونات وتقليل حجم الحاويات --- */
-
-/* أيقونات الهيدر العلوي - الحفاظ على الحجم الكبير 56px */
-.custom-img-icon {
-  width: 56px;  
-  height: 56px;
-  border-radius: 50%;
-  object-fit: cover;
-  transition: transform 0.3s ease;
-  border: 2px solid var(--female-pink); 
-}
-
-/* الأيقونات الجانبية في المنيو السفلي - الحفاظ على الحجم الكبير 52px */
-.custom-img-icon-nav {
-  width: 52px;   
-  height: 52px;  
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid var(--female-pink-light);
-  transition: all 0.3s ease;
-  background-color: white;
-}
-
-/* أيقونة الصحة المركزية (صحتك) */
-.custom-img-icon-main {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-/* الدائرة المركزية - الحفاظ على الحجم 90px */
-.center-circle {
-  width: 90px;   
-  height: 90px;
-  background: white;
-  border-radius: 50%;
-  overflow: hidden;
-  border: 3px solid var(--female-pink); 
-  box-shadow: 0 6px 15px rgba(255, 77, 125, 0.3);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-/* ضبط مكان الزر المركزي - تقليل الرفع ليناسب تقليل حجم المنيو */
-.center-action {
-  position: relative;
-  top: -20px; /* تم تقليل الرفع من -35px ليتناسب مع صغر المنيو */
-}
-
-/* ضبط حجم الخط للعناوين السفلية */
-.nav-label {
-  font-size: 0.8rem; /* تم تصغير الخط قليلاً لتوفير المساحة */
-  margin-top: 4px; /* تقليل المسافة العلوية */
-  font-weight: 600;
-  color: var(--female-pink);
-}
-
-.bold { font-weight: bold; color: var(--female-pink); }
-
-/* --- الهيدر العلوي المعدل: تقليل البادينج للنصف --- */
+/* الهيدر العلوي - زيادة الارتفاع والوضوح */
 .top-sticky-menu {
-  padding: 8px 12px; /* تم تقليل البادينج من 15px إلى 8px لتصغير المساحة */
+  padding: 15px 20px; /* زيادة المساحة لجعل الهيدر أضخم */
   background: var(--glass-white);
   backdrop-filter: blur(10px);
   border-bottom: 2px solid var(--female-pink-light);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .top-cards-container {
   display: flex;
   gap: 15px;
-  justify-content: center;
+  justify-content: stretch; /* تجعل العناصر تحاول التمدد */
+  width: 100%;
 }
 
 .top-card {
@@ -110,35 +51,47 @@ body {
   flex-direction: row; 
   align-items: center;
   background: white;
-  padding: 4px 12px; /* تقليل البادينج الداخلي لتصغير حجم البطاقة */
-  border-radius: 30px; 
+  padding: 12px 18px; /* زيادة المساحة الداخلية للبطاقة */
+  border-radius: 15px; /* حواف عصرية */
+  flex: 1; /* تجعل البطاقات تتوزع بالتساوي وتملأ العرض */
   text-decoration: none;
-  box-shadow: 0 4px 10px rgba(255, 77, 125, 0.1);
+  box-shadow: 0 4px 12px rgba(255, 77, 125, 0.1);
   border: 1px solid var(--female-pink-light);
   transition: 0.3s;
 }
 
-.card-text {
-  margin-right: 12px;
-  text-align: right;
+/* منطقة المحتوى - إزالة الضيق الجانبي */
+.main-content {
+  flex: 1;
+  padding: 20px; /* مساحة مريحة حول المحتوى */
+  width: 100%;
+  box-sizing: border-box;
+  padding-bottom: 110px; /* مساحة كافية فوق المنيو السفلي */
 }
 
-.card-label {
-  font-size: 0.8rem; /* تصغير الخط قليلاً */
-  font-weight: bold;
-  color: var(--female-pink);
+/* البطاقات الزجاجية (توسيع الحجم) */
+.glass-card {
+  background: white;
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 15px;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--female-pink-light);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
 }
 
-/* --- القائمة السفلية المعدلة: تقليل الارتفاع للنصف تقريباً --- */
+/* القائمة السفلية - ضبط الارتفاع ليكون واضحاً ومريحاً */
 .bottom-sticky-menu {
   position: fixed;
   bottom: 0;
   width: 100%;
   background: white;
-  padding: 5px 0 10px 0; /* تقليل البادينج للنصف */
-  box-shadow: 0 -6px 20px rgba(255, 77, 125, 0.1);
-  border-radius: 30px 30px 0 0;
-  height: 80px; /* تم تقليل الارتفاع من 110px إلى 80px لتصغير مساحة المنيو */
+  padding: 10px 0;
+  box-shadow: 0 -6px 20px rgba(255, 77, 125, 0.15);
+  border-radius: 25px 25px 0 0;
+  height: 90px; /* ارتفاع متوازن */
+  z-index: 1000;
 }
 
 .nav-grid {
@@ -148,33 +101,55 @@ body {
   height: 100%;
 }
 
-.nav-item {
+/* أحجام الأيقونات - الحفاظ عليها كبيرة كما طلبت */
+.custom-img-icon {
+  width: 56px;  
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--female-pink); 
+}
+
+.custom-img-icon-nav {
+  width: 50px;   
+  height: 50px;  
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--female-pink-light);
+}
+
+.center-circle {
+  width: 85px;   
+  height: 85px;
+  background: white;
+  border-radius: 50%;
+  border: 4px solid var(--female-pink); 
   display: flex;
-  flex-direction: column;
+  justify-content: center;
   align-items: center;
-  text-decoration: none;
-  color: var(--text-gray);
-  flex: 1;
+  box-shadow: 0 6px 15px rgba(255, 77, 125, 0.3);
 }
 
-/* منطقة المحتوى */
-.main-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
-  padding-bottom: 90px; /* تقليل مسافة الأمان لتناسب المنيو الأصغر */
+.center-action {
+  position: relative;
+  top: -25px; /* رفع الزر المركزي ليبرز فوق المنيو */
 }
 
-/* ستايل الزجاج (Glassmorphism) المرتبط بفيربيس */
-.glass-card {
-  background: rgba(255, 255, 255, 0.2); 
-  border: 1px solid var(--main-theme-color); /* التحديد يتغير لونه من فيربيس */
-  backdrop-filter: blur(10px);
+/* الخطوط */
+.nav-label {
+  font-size: 0.9rem; /* تكبير الخط قليلاً للوضوح */
+  font-weight: 700;
+  color: var(--female-pink);
+  margin-top: 5px;
 }
 
-/* تفاعلات عند الضغط */
-.nav-item:active .custom-img-icon-nav,
-.center-action:active .center-circle,
-.top-card:active {
-  transform: scale(0.9);
+.card-label {
+  font-size: 1rem; /* تكبير خط العناوين داخل البطاقات */
+  font-weight: bold;
+  color: var(--female-pink);
+}
+
+/* التفاعلات */
+.nav-item:active, .top-card:active {
+  transform: scale(0.95);
 }
