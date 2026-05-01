@@ -1,187 +1,139 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إدارة المخزون - Inventory</title>
-    <!-- استيراد الخطوط والأيقونات -->
-    <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
-    
-    <style>
-        :root {
-            --bg-color: #f8fafc;
-            --card-bg: #ffffff;
-            --blue-brand: #2563eb;
-            --green-success: #22c55e;
-            --red-danger: #ef4444;
-            --text-dark: #374151;
-            --text-gray: #6b7280;
-        }
+import React from 'react';
+import { Plus, Minus } from 'lucide-react';
 
-        body {
-            font-family: 'Almarai', sans-serif;
-            background-color: var(--bg-color);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-        }
-
-        .inventory-container {
-            width: 100%;
-            max-width: 500px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        /* العنوان الرئيسي */
-        .section-title {
-            font-size: 1.25rem;
-            font-weight: 800;
-            color: var(--text-dark);
-            margin-bottom: 8px;
-            border-right: 4px solid var(--blue-brand);
-            padding-right: 12px;
-        }
-
-        /* كرت القسم */
-        .category-card {
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            border: 1px solid #f1f5f9;
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .category-name {
-            font-weight: 700;
-            color: var(--text-dark);
-            font-size: 1.1rem;
-        }
-
-        .balance-badge {
-            background-color: #dbeafe;
-            color: #1d4ed8;
-            padding: 6px 14px;
-            border-radius: 10px;
-            font-size: 0.85rem;
-            font-weight: 800;
-        }
-
-        /* منطقة الأزرار */
-        .actions-group {
-            display: flex;
-            gap: 12px;
-        }
-
-        .btn {
-            flex: 1;
-            border: none;
-            padding: 14px;
-            border-radius: 15px;
-            font-family: 'Almarai', sans-serif;
-            font-weight: 700;
-            font-size: 1rem;
-            color: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            transition: transform 0.1s ease, opacity 0.2s ease;
-        }
-
-        .btn:active {
-            transform: scale(0.96);
-        }
-
-        .btn-in {
-            background-color: var(--green-success);
-        }
-
-        .btn-out {
-            background-color: var(--red-danger);
-        }
-
-        .btn i {
-            width: 18px;
-            height: 18px;
-        }
-    </style>
-</head>
-<body>
-
-    <div class="inventory-container">
-        <h2 class="section-title">أقسام المواد الخام</h2>
-
-        <!-- كرت القسم الأول -->
-        <div class="category-card">
-            <div class="card-header">
-                <span class="category-name">خشب زان</span>
-                <span class="balance-badge">120 وحدة</span>
-            </div>
-            <div class="actions-group">
-                <button class="btn btn-in" onclick="console.log('توريد خشب زان')">
-                    <i data-lucide="plus"></i>
-                    توريد
-                </button>
-                <button class="btn btn-out" onclick="console.log('سحب خشب زان')">
-                    <i data-lucide="minus"></i>
-                    سحب
-                </button>
-            </div>
-        </div>
-
-        <!-- كرت القسم الثاني -->
-        <div class="category-card">
-            <div class="card-header">
-                <span class="category-name">حديد تسليح</span>
-                <span class="balance-badge">45 وحدة</span>
-            </div>
-            <div class="actions-group">
-                <button class="btn btn-in">
-                    <i data-lucide="plus"></i>
-                    توريد
-                </button>
-                <button class="btn btn-out">
-                    <i data-lucide="minus"></i>
-                    سحب
-                </button>
-            </div>
-        </div>
-
-        <!-- كرت القسم الثالث -->
-        <div class="category-card">
-            <div class="card-header">
-                <span class="category-name">أسمنت بورتلاندي</span>
-                <span class="balance-badge">8 وحدة</span>
-            </div>
-            <div class="actions-group">
-                <button class="btn btn-in">
-                    <i data-lucide="plus"></i>
-                    توريد
-                </button>
-                <button class="btn btn-out">
-                    <i data-lucide="minus"></i>
-                    سحب
-                </button>
-            </div>
-        </div>
-
+// مكون فرعي لكل قسم من الأقسام لتقليل تكرار الكود
+const InventoryCard = ({ name, balance, onIn, onOut, styles }) => (
+  <div style={styles.categoryCard}>
+    <div style={styles.cardHeader}>
+      <span style={styles.categoryName}>{name}</span>
+      <span style={styles.balanceBadge}>{balance} وحدة</span>
     </div>
+    <div style={styles.actionsGroup}>
+      <button 
+        style={{ ...styles.btn, ...styles.btnIn }} 
+        onClick={() => onIn(name)}
+      >
+        <Plus size={18} />
+        توريد
+      </button>
+      <button 
+        style={{ ...styles.btn, ...styles.btnOut }} 
+        onClick={() => onOut(name)}
+      >
+        <Minus size={18} />
+        سحب
+      </button>
+    </div>
+  </div>
+);
 
-    <script>
-        // تفعيل أيقونات Lucide
-        lucide.createIcons();
-    </script>
-</body>
-</html>
+const InventoryManager = () => {
+  // تعريف التنسيقات
+  const styles = {
+    container: {
+      width: '100%',
+      maxWidth: '500px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '16px',
+      fontFamily: "'Almarai', sans-serif",
+      direction: 'rtl',
+      margin: '0 auto',
+      padding: '20px',
+    },
+    sectionTitle: {
+      fontSize: '1.25rem',
+      fontWeight: '800',
+      color: '#374151',
+      marginBottom: '8px',
+      borderRight: '4px solid #2563eb',
+      paddingRight: '12px',
+    },
+    categoryCard: {
+      background: '#ffffff',
+      padding: '20px',
+      borderRadius: '20px',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+      border: '1px solid #f1f5f9',
+    },
+    cardHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: '20px',
+    },
+    categoryName: {
+      fontWeight: '700',
+      color: '#374151',
+      fontSize: '1.1rem',
+    },
+    balanceBadge: {
+      backgroundColor: '#dbeafe',
+      color: '#1d4ed8',
+      padding: '6px 14px',
+      borderRadius: '10px',
+      fontSize: '0.85rem',
+      fontWeight: '800',
+    },
+    actionsGroup: {
+      display: 'flex',
+      gap: '12px',
+    },
+    btn: {
+      flex: 1,
+      border: 'none',
+      padding: '14px',
+      borderRadius: '15px',
+      fontFamily: "'Almarai', sans-serif",
+      fontWeight: '700',
+      fontSize: '1rem',
+      color: 'white',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '8px',
+      transition: 'opacity 0.2s ease',
+    },
+    btnIn: { backgroundColor: '#22c55e' },
+    btnOut: { backgroundColor: '#ef4444' },
+  };
+
+  const handleAction = (type, category) => {
+    console.log(`${type === 'in' ? 'توريد' : 'سحب'} : ${category}`);
+  };
+
+  return (
+    <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+      <div style={styles.container}>
+        <h2 style={styles.sectionTitle}>أقسام المواد الخام</h2>
+
+        <InventoryCard 
+          name="خشب زان" 
+          balance="120" 
+          onIn={() => handleAction('in', 'خشب زان')}
+          onOut={() => handleAction('out', 'خشب زان')}
+          styles={styles} 
+        />
+
+        <InventoryCard 
+          name="حديد تسليح" 
+          balance="45" 
+          onIn={() => handleAction('in', 'حديد تسليح')}
+          onOut={() => handleAction('out', 'حديد تسليح')}
+          styles={styles} 
+        />
+
+        <InventoryCard 
+          name="أسمنت بورتلاندي" 
+          balance="8" 
+          onIn={() => handleAction('in', 'أسمنت بورتلاندي')}
+          onOut={() => handleAction('out', 'أسمنت بورتلاندي')}
+          styles={styles} 
+        />
+      </div>
+    </div>
+  );
+};
+
+export default InventoryManager;
