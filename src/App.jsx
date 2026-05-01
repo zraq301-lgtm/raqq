@@ -15,10 +15,10 @@ export default function App() {
     { id: 3, name: "قسم الإضافات الكيميائية", balance: 12, operations: [] }
   ]);
 
-  // دالة تحديث المخزن من صفحة المشتريات (تلقائي)
+  // ✅ الدالة المسؤولة عن التواصل (تحديث المخزن فور الشراء)
   const handleNewPurchase = (data) => {
     setCategories(prevCategories => prevCategories.map(item => {
-      // الربط يتم عن طريق اسم الفئة (data.name)
+      // الربط يتم عن طريق مطابقة اسم الفئة القادمة من المشتريات مع اسم القسم في المخزن
       if (item.name === data.name) {
         const newBalance = item.balance + data.amount;
         return { 
@@ -39,7 +39,7 @@ export default function App() {
     }));
   };
 
-  // دالة التحديث اليدوي من صفحة المخزن
+  // دالة التحديث اليدوي من صفحة المخزن (توريد/سحب)
   const handleUpdate = (id, type) => {
     const val = parseFloat(prompt(type === 'IN' ? "كمية التوريد؟" : "كمية السحب؟"));
     if (!val || val <= 0) return;
@@ -66,18 +66,22 @@ export default function App() {
 
       {/* عرض الصفحات بناءً على الحالة */}
       {page === 'dashboard' && <Dashboard categories={categories} />}
+      
+      {/* ✅ تمرير المصفوفة التي تتحدث عند الشراء لمكون المخزن */}
       {page === 'inventory' && <Inventory categories={categories} onUpdate={handleUpdate} />}
+      
       {page === 'reports' && <Reports categories={categories} />}
+      
+      {/* ربط مكون المشتريات بدالة التحديث */}
       {page === 'purchases' && <PurchasesManager onPurchaseComplete={handleNewPurchase} />}
 
-      {/* المنيو السفلي المحدث */}
+      {/* المنيو السفلي */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around p-3 shadow-2xl z-50">
         <button onClick={() => setPage('dashboard')} className={page === 'dashboard' ? 'text-blue-600' : 'text-gray-400'}>
           <LayoutDashboard size={24} />
           <span className="block text-xs">الرئيسية</span>
         </button>
         
-        {/* زر المشتريات الجديد */}
         <button onClick={() => setPage('purchases')} className={page === 'purchases' ? 'text-purple-600' : 'text-gray-400'}>
           <ShoppingCart size={24} />
           <span className="block text-xs">المشتريات</span>
