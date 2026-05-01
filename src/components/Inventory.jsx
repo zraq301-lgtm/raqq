@@ -25,25 +25,19 @@ const Inventory = ({ categories, onDelete }) => {
     shelfGrid: {
       display: 'grid',
       gap: '20px',
-      gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', // نظام الرفوف التلقائي
+      gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
     },
     shelfItem: {
       background: '#ffffff',
       borderRadius: '12px',
       padding: '20px',
-      borderBottom: '5px solid #3b82f6', // قاعدة الرف
+      borderBottom: '5px solid #3b82f6',
       boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.05)',
-      transition: 'transform 0.2s',
       position: 'relative',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'space-between',
       minHeight: '140px'
-    },
-    itemInfo: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start'
     },
     itemName: {
       fontSize: '1.1rem',
@@ -67,33 +61,22 @@ const Inventory = ({ categories, onDelete }) => {
       color: '#2563eb',
       display: 'block'
     },
-    unit: {
-      fontSize: '0.8rem',
-      color: '#64748b',
-      fontWeight: '600'
-    },
     deleteArea: {
       position: 'absolute',
       top: '10px',
-      left: '10px'
+      left: '10px',
+      zIndex: 10 // لضمان ظهور الزر فوق أي عنصر آخر
     },
     btnDelete: {
       background: '#fff1f2',
       color: '#e11d48',
       border: 'none',
-      padding: '6px',
+      padding: '8px',
       borderRadius: '8px',
       cursor: 'pointer',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      transition: 'background 0.2s'
-    },
-    emptyShelf: {
-      textAlign: 'center',
-      padding: '50px',
-      gridColumn: '1/-1',
-      color: '#94a3b8'
     }
   };
 
@@ -106,37 +89,31 @@ const Inventory = ({ categories, onDelete }) => {
 
       <div style={styles.shelfGrid}>
         {categories.length === 0 ? (
-          <div style={styles.emptyShelf}>
+          <div style={{ textAlign: 'center', gridColumn: '1/-1', padding: '50px', color: '#94a3b8' }}>
             <AlertCircle size={48} style={{ marginBottom: '10px', opacity: 0.5 }} />
-            <p>لا توجد مواد مرصوصة على الرفوف حالياً</p>
+            <p>المخزن فارغ تماماً حالياً</p>
           </div>
         ) : (
           categories.map((cat) => (
             <div key={cat.id} style={styles.shelfItem}>
-              {/* منطقة الحذف */}
               <div style={styles.deleteArea}>
                 <button 
-                  onClick={() => onDelete(cat.id)} 
+                  onClick={() => onDelete(cat.id)} // استدعاء دالة الحذف
                   style={styles.btnDelete}
-                  onMouseOver={(e) => e.currentTarget.style.background = '#ffe4e6'}
-                  onMouseOut={(e) => e.currentTarget.style.background = '#fff1f2'}
+                  title="إزالة الرف"
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={18} />
                 </button>
               </div>
 
-              {/* معلومات المادة */}
-              <div style={styles.itemInfo}>
-                <div style={styles.itemName}>
-                  <Box size={18} color="#64748b" />
-                  {cat.name}
-                </div>
+              <div style={styles.itemName}>
+                <Box size={18} color="#64748b" />
+                {cat.name}
               </div>
 
-              {/* عرض الكمية الضخم */}
               <div style={styles.quantityDisplay}>
                 <span style={styles.number}>{cat.balance}</span>
-                <span style={styles.unit}>وحدة متاحة</span>
+                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>وحدة متاحة</span>
               </div>
             </div>
           ))
