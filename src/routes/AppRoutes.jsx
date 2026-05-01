@@ -1,22 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-function Dashboard() {
-  return (
-    <div>
-      <h1>🏠 لوحة التحكم</h1>
-      <p>النظام يعمل بنجاح</p>
-    </div>
-  );
-}
-
-function Inventory() {
-  return (
-    <div>
-      <h1>📦 المخزون</h1>
-      <p>صفحة المخزون تعمل</p>
-    </div>
-  );
-}
+import Dashboard from "../pages/Dashboard/Dashboard.jsx";
+import Inventory from "../pages/Inventory/InventoryList.jsx";
 
 export default function AppRoutes() {
   return (
