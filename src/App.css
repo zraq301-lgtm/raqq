@@ -1,64 +1,87 @@
-/* حاوية شريط التنقل السفلي */
+/* إعدادات الخطوط والمقاسات للهواتف */
+:root {
+  --primary-blue: #00d2ff;
+  --glass-white: rgba(255, 255, 255, 0.1);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: #0f172a; /* خلفية داكنة لتبرز الشفافية */
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  color: white;
+  direction: rtl; /* لضمان اتساق اللغة العربية */
+}
+
+/* حاوية الصفحة الرئيسية لضمان عدم صغر المحتوى */
+.dashboard-container {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* بطاقة العنوان (الهيدر) */
+.main-header {
+  background: var(--glass-white);
+  backdrop-filter: blur(10px);
+  border-radius: 15px;
+  padding: 25px; /* زيادة التباعد لجعل المحتوى أكبر */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
+.main-header h1 {
+  font-size: 1.5rem; /* خط كبير وواضح */
+  margin-bottom: 10px;
+  color: var(--primary-blue);
+}
+
+/* بطاقة الإحصائيات (مثل إجمالي الوحدات في الصورة) */
+.stat-card {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-right: 4px solid var(--primary-blue); /* شريط جانبي للأناقة */
+}
+
+.stat-label {
+  font-size: 1rem;
+  opacity: 0.8;
+}
+
+.stat-value {
+  font-size: 1.8rem; /* رقم كبير وواضح */
+  font-weight: bold;
+}
+
+/* شريط التنقل السفلي - مقاسات كبيرة */
 .bottom-nav {
   position: fixed;
-  bottom: 20px; /* رفعه قليلاً عن الحافة ليعطي شعوراً بالتطبيقات الحديثة */
-  left: 50%;
-  transform: translateX(-50%); /* لتوسيط الشريط تماماً */
-  width: 90%; /* عرض مناسب ليناسب شاشات الأندرويد */
-  max-width: 500px; /* لضمان عدم تمدده بشكل مبالغ فيه على التابلت */
-  height: 65px; /* ارتفاع مثالي لسهولة الضغط بالإبهام */
-  
-  /* تأثير الزجاج الشفاف */
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
-  
-  /* الحدود والظلال */
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 20px;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  
-  /* توزيع الأيقونات */
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(20px);
   display: flex;
   justify-content: space-around;
   align-items: center;
-  z-index: 9999;
-  padding: 0 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 100;
 }
 
-/* نمط زر الأيقونة */
 .nav-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  flex: 1;
-  color: rgba(255, 255, 255, 0.6);
-  text-decoration: none;
-  transition: all 0.3s ease-in-out;
-  cursor: pointer;
+  font-size: 0.9rem;
+  color: #94a3b8;
 }
 
-/* مقاس الأيقونة */
-.nav-item i, .nav-item span.icon {
-  font-size: 24px; /* مقاس أيقونة مريح للعين */
-  margin-bottom: 4px;
-}
-
-/* اسم القسم أسفل الأيقونة */
-.nav-item span.label {
-  font-size: 11px; /* خط صغير وأنيق */
-  font-weight: 500;
-  letter-spacing: 0.5px;
-}
-
-/* تأثير عند الضغط أو القسم النشط */
 .nav-item.active {
-  color: #00d2ff; /* لون مميز للقسم المفتوح */
-  transform: translateY(-5px); /* حركة بسيطة للأعلى عند النشاط */
-}
-
-/* إضافة نبضة بسيطة عند الضغط */
-.nav-item:active {
-  transform: scale(0.9);
+  color: var(--primary-blue);
 }
