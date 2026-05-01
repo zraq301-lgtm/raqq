@@ -15,24 +15,28 @@ export default function App() {
     { id: 3, name: "قسم الإضافات الكيميائية", balance: 12, operations: [] }
   ]);
 
-  // ✅ الدالة السحرية: تضيف صنف جديد للمخزن إذا لم يكن موجوداً
+  // ✅ دالة الحذف الجديدة: تقوم بإزالة الرف/الصنف بالكامل من المخزن
+  const handleDeleteCategory = (id) => {
+    if (window.confirm("هل أنت متأكد من حذف هذا الرف بالكامل من المخزن؟")) {
+      setCategories(prev => prev.filter(cat => cat.id !== id));
+    }
+  };
+
+  // ✅ الدالة السحرية: تضيف صنف جديد للمخزن إذا لم يكن موجوداً (تلقائياً من المشتريات)
   const handleNewPurchase = (data) => {
     setCategories(prevCategories => {
-      // 1. البحث هل الصنف (مثل خشب زان) موجود فعلاً؟
       const exists = prevCategories.find(item => item.name === data.name);
 
       if (exists) {
-        // 2. إذا كان موجوداً، نحدث الكمية فقط
         return prevCategories.map(item => 
           item.name === data.name 
             ? { ...item, balance: item.balance + data.amount } 
             : item
         );
       } else {
-        // 3. إذا كان صنفاً جديداً (كما في صورتك)، ننشئ له قسماً جديداً فوراً
         const newCategory = {
-          id: Date.now(), // معرف فريد
-          name: data.name, // سيأخذ اسم "خشب زان" من المشتريات
+          id: Date.now(),
+          name: data.name,
           balance: data.amount,
           operations: [{
             date: new Date().toLocaleDateString(),
@@ -45,17 +49,21 @@ export default function App() {
       }
     });
     
-    // توجيه تلقائي للمخزن لرؤية الإضافة
+    // التوجه للمخزن لرؤية الرف الجديد
     setPage('inventory');
   };
 
+  // دالة التحديث اليدوية (اختيارية إذا أردت استدعاءها داخلياً)
   const handleUpdate = (id, type) => {
     const val = parseFloat(prompt(type === 'IN' ? "كمية التوريد؟" : "كمية السحب؟"));
     if (!val || val <= 0) return;
     setCategories(prev => prev.map(cat => {
       if (cat.id === id) {
         const newBalance = type === 'IN' ? cat.balance + val : cat.balance - val;
-        if (newBalance < 0) return alert("المخزن لا يكفي!");
+        if (newBalance < 0) {
+          alert("المخزن لا يكفي!");
+          return cat;
+        }
         return {
           ...cat,
           balance: newBalance,
@@ -68,27 +76,43 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20" dir="rtl">
+      {/* الرأس */}
       <nav className="bg-white p-4 shadow-sm text-center font-bold text-blue-600 text-lg sticky top-0 z-50">
         نظام إدارة المشتريات والمخزن
       </nav>
 
-      {page === 'dashboard' && <Dashboard categories={categories} />}
-      {page === 'inventory' && <Inventory categories={categories} onUpdate={handleUpdate} />}
-      {page === 'reports' && <Reports categories={categories} />}
-      {page === 'purchases' && <PurchasesManager onPurchaseComplete={handleNewPurchase} />}
+      {/* محتوى الصفحات */}
+      <main className="container mx-auto p-2">
+        {page === 'dashboard' && <Dashboard categories={categories} />}
+        
+        {page === 'inventory' && (
+          <Inventory 
+            categories={categories} 
+            onDelete={handleDeleteCategory} // تفعيل الحذف هنا
+            onUpdate={handleUpdate} // تفعيل التحديث اليدوي إذا رغبت
+          />
+        )}
+        
+        {page === 'reports' && <Reports categories={categories} />}
+        
+        {page === 'purchases' && (
+          <PurchasesManager onPurchaseComplete={handleNewPurchase} />
+        )}
+      </main>
 
+      {/* القائمة السفلية للتنقل */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around p-3 shadow-2xl z-50">
         <button onClick={() => setPage('dashboard')} className={page === 'dashboard' ? 'text-blue-600' : 'text-gray-400'}>
-          <LayoutDashboard size={24} />
+          <LayoutDashboard size={28} />
         </button>
         <button onClick={() => setPage('purchases')} className={page === 'purchases' ? 'text-purple-600' : 'text-gray-400'}>
-          <ShoppingCart size={24} />
+          <ShoppingCart size={28} />
         </button>
         <button onClick={() => setPage('inventory')} className={page === 'inventory' ? 'text-blue-600' : 'text-gray-400'}>
-          <Box size={24} />
+          <Box size={28} />
         </button>
         <button onClick={() => setPage('reports')} className={page === 'reports' ? 'text-blue-600' : 'text-gray-400'}>
-          <FileText size={24} />
+          <FileText size={28} />
         </button>
       </div>
     </div>
