@@ -2,16 +2,44 @@ import React, { useState } from 'react';
 import Dashboard from './components/Dashboard';
 import Inventory from './components/Inventory';
 import Reports from './components/Reports';
-import { LayoutDashboard, Box, FileText, Menu } from 'lucide-react';
+import PurchasesManager from './components/PurchasesManager'; // استدعاء المكون الجديد
+import { LayoutDashboard, Box, FileText, ShoppingCart } from 'lucide-react';
 
 export default function App() {
   const [page, setPage] = useState('dashboard');
+  
+  // حالة المخزن (Categories)
   const [categories, setCategories] = useState([
     { id: 1, name: "قسم البولي إيثيلين", balance: 150, operations: [] },
     { id: 2, name: "قسم الأصباغ الخام", balance: 45, operations: [] },
     { id: 3, name: "قسم الإضافات الكيميائية", balance: 12, operations: [] }
   ]);
 
+  // دالة تحديث المخزن من صفحة المشتريات (تلقائي)
+  const handleNewPurchase = (data) => {
+    setCategories(prevCategories => prevCategories.map(item => {
+      // الربط يتم عن طريق اسم الفئة (data.name)
+      if (item.name === data.name) {
+        const newBalance = item.balance + data.amount;
+        return { 
+          ...item, 
+          balance: newBalance,
+          operations: [
+            ...item.operations, 
+            { 
+              date: new Date().toLocaleDateString(), 
+              type: 'IN (شراء)', 
+              amount: data.amount, 
+              finalBalance: newBalance 
+            }
+          ]
+        };
+      }
+      return item;
+    }));
+  };
+
+  // دالة التحديث اليدوي من صفحة المخزن
   const handleUpdate = (id, type) => {
     const val = parseFloat(prompt(type === 'IN' ? "كمية التوريد؟" : "كمية السحب؟"));
     if (!val || val <= 0) return;
@@ -36,19 +64,33 @@ export default function App() {
         نظام إدارة المشتريات والمخزن
       </nav>
 
+      {/* عرض الصفحات بناءً على الحالة */}
       {page === 'dashboard' && <Dashboard categories={categories} />}
       {page === 'inventory' && <Inventory categories={categories} onUpdate={handleUpdate} />}
       {page === 'reports' && <Reports categories={categories} />}
+      {page === 'purchases' && <PurchasesManager onPurchaseComplete={handleNewPurchase} />}
 
+      {/* المنيو السفلي المحدث */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around p-3 shadow-2xl z-50">
         <button onClick={() => setPage('dashboard')} className={page === 'dashboard' ? 'text-blue-600' : 'text-gray-400'}>
           <LayoutDashboard size={24} />
+          <span className="block text-xs">الرئيسية</span>
         </button>
+        
+        {/* زر المشتريات الجديد */}
+        <button onClick={() => setPage('purchases')} className={page === 'purchases' ? 'text-purple-600' : 'text-gray-400'}>
+          <ShoppingCart size={24} />
+          <span className="block text-xs">المشتريات</span>
+        </button>
+
         <button onClick={() => setPage('inventory')} className={page === 'inventory' ? 'text-blue-600' : 'text-gray-400'}>
           <Box size={24} />
+          <span className="block text-xs">المخزن</span>
         </button>
+
         <button onClick={() => setPage('reports')} className={page === 'reports' ? 'text-blue-600' : 'text-gray-400'}>
           <FileText size={24} />
+          <span className="block text-xs">التقارير</span>
         </button>
       </div>
     </div>
