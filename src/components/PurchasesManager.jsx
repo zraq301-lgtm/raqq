@@ -6,30 +6,29 @@ const PurchasesManager = ({ onPurchaseComplete }) => {
   const [purchase, setPurchase] = useState({
     itemName: '',
     quantity: '',
-    category: 'خشب زان', // الفئة الافتراضية للربط
+    category: '', // أصبحت فارغة لتسمح بالكتابة الحرة
     price: ''
   });
-
-  // قائمة الفئات المتاحة (يجب أن تطابق الأسماء في قسم المخزن)
-  const categories = ["خشب زان", "حديد تسليح", "أسمنت بورتلاندي"];
 
   const handleAddPurchase = (e) => {
     e.preventDefault();
     
-    if (!purchase.itemName || !purchase.quantity) {
-      alert("يرجى ملء البيانات الأساسية");
+    // التحقق من ملء البيانات بما في ذلك الفئة
+    if (!purchase.itemName || !purchase.quantity || !purchase.category) {
+      alert("يرجى ملء كافة البيانات (اسم المنتج، الفئة، والكمية)");
       return;
     }
 
-    // إرسال البيانات للقسم الرئيسي لتحديث المخزن فوراً
+    // إرسال البيانات للقسم الرئيسي
+    // الدالة في App.jsx ستقارن اسم "category" مع المخزن وتضيفه تلقائياً
     onPurchaseComplete({
-      name: purchase.category, // نستخدم الفئة للربط مع المخزن
+      name: purchase.category.trim(), // إزالة المسافات الزائدة
       amount: parseInt(purchase.quantity),
       details: purchase.itemName
     });
 
     // تصفير الحقول بعد الإضافة
-    setPurchase({ itemName: '', quantity: '', category: 'خشب زان', price: '' });
+    setPurchase({ itemName: '', quantity: '', category: '', price: '' });
     alert("تمت الإضافة للمشتريات وتحديث المخزن بنجاح!");
   };
 
@@ -69,14 +68,8 @@ const PurchasesManager = ({ onPurchaseComplete }) => {
       border: '1px solid #ddd',
       fontSize: '1rem',
       outline: 'none',
-      transition: 'border 0.3s'
-    },
-    select: {
-      padding: '12px',
-      borderRadius: '12px',
-      border: '1px solid #ddd',
-      backgroundColor: '#f9f9f9',
-      fontSize: '1rem'
+      transition: 'border 0.3s',
+      backgroundColor: '#fff'
     },
     submitBtn: {
       backgroundColor: '#9b59b6',
@@ -103,6 +96,7 @@ const PurchasesManager = ({ onPurchaseComplete }) => {
       </div>
 
       <form style={styles.form} onSubmit={handleAddPurchase}>
+        {/* اسم المادة التفصيلي */}
         <div style={styles.inputGroup}>
           <label style={styles.label}>اسم المنتج/المادة</label>
           <input 
@@ -113,15 +107,18 @@ const PurchasesManager = ({ onPurchaseComplete }) => {
           />
         </div>
 
+        {/* الفئة المخزنية - تحولت إلى مدخل نصي حر */}
         <div style={styles.inputGroup}>
-          <label style={styles.label}>الفئة المخزنية (لربط الكمية)</label>
-          <select 
-            style={styles.select}
+          <label style={styles.label}>الفئة المخزنية (الرف المراد الإضافة إليه)</label>
+          <input 
+            style={styles.input}
+            placeholder="اكتب اسم القسم (مثال: خشب زان، مواد خام...)"
             value={purchase.category}
             onChange={(e) => setPurchase({...purchase, category: e.target.value})}
-          >
-            {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-          </select>
+          />
+          <small style={{color: '#888', fontSize: '0.75rem'}}>
+            * إذا كتبت اسماً جديداً، سيتم إنشاء رف جديد له في المخزن تلقائياً.
+          </small>
         </div>
 
         <div style={{display: 'flex', gap: '10px'}}>
@@ -149,7 +146,7 @@ const PurchasesManager = ({ onPurchaseComplete }) => {
 
         <button type="submit" style={styles.submitBtn}>
           <PlusCircle size={22} />
-          تأكيد الشراء وإضافة للمخزن
+          تأكيد الشراء والترسيم بالمخزن
         </button>
       </form>
     </div>
