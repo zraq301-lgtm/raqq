@@ -1,33 +1,30 @@
 import React, { useState } from 'react';
-import { ShoppingCart, PlusCircle, PackageCheck, Tag } from 'lucide-react';
+import { ShoppingCart, PlusCircle, Tag, Hash, Layout } from 'lucide-react';
 
 const PurchasesManager = ({ onPurchaseComplete }) => {
-  // حالة لإدارة مدخلات عملية الشراء الجديدة
   const [purchase, setPurchase] = useState({
     itemName: '',
     quantity: '',
-    category: '', // أصبحت فارغة لتسمح بالكتابة الحرة
+    category: '', 
     price: ''
   });
 
   const handleAddPurchase = (e) => {
     e.preventDefault();
     
-    // التحقق من ملء البيانات بما في ذلك الفئة
-    if (!purchase.itemName || !purchase.quantity || !purchase.category) {
-      alert("يرجى ملء كافة البيانات (اسم المنتج، الفئة، والكمية)");
+    if (!purchase.itemName || !purchase.quantity || !purchase.category || !purchase.price) {
+      alert("يرجى ملء كافة البيانات بما في ذلك سعر الوحدة");
       return;
     }
 
-    // إرسال البيانات للقسم الرئيسي
-    // الدالة في App.jsx ستقارن اسم "category" مع المخزن وتضيفه تلقائياً
+    // إرسال البيانات (تأكدنا هنا من إضافة السعر ليتم استقباله في App.jsx)
     onPurchaseComplete({
-      name: purchase.category.trim(), // إزالة المسافات الزائدة
+      name: purchase.category.trim(),
       amount: parseInt(purchase.quantity),
+      price: parseFloat(purchase.price), // إضافة السعر هنا
       details: purchase.itemName
     });
 
-    // تصفير الحقول بعد الإضافة
     setPurchase({ itemName: '', quantity: '', category: '', price: '' });
     alert("تمت الإضافة للمشتريات وتحديث المخزن بنجاح!");
   };
@@ -37,9 +34,8 @@ const PurchasesManager = ({ onPurchaseComplete }) => {
       width: '100%',
       backgroundColor: '#ffffff',
       borderRadius: '20px',
-      padding: '25px',
+      padding: '20px',
       boxShadow: '0 10px 25px rgba(0,0,0,0.05)',
-      border: '1px solid #9b59b620',
       direction: 'rtl',
       fontFamily: "'Tajawal', sans-serif",
       boxSizing: 'border-box'
@@ -50,7 +46,8 @@ const PurchasesManager = ({ onPurchaseComplete }) => {
       gap: '10px',
       color: '#9b59b6',
       marginBottom: '20px',
-      fontSize: '1.4rem'
+      fontSize: '1.3rem',
+      fontWeight: 'bold'
     },
     form: {
       display: 'grid',
@@ -59,32 +56,45 @@ const PurchasesManager = ({ onPurchaseComplete }) => {
     inputGroup: {
       display: 'flex',
       flexDirection: 'column',
+      gap: '8px'
+    },
+    label: { 
+      fontWeight: 'bold', 
+      color: '#444', 
+      fontSize: '0.95rem',
+      display: 'flex',
+      alignItems: 'center',
       gap: '5px'
     },
-    label: { fontWeight: 'bold', color: '#555', fontSize: '0.9rem' },
     input: {
-      padding: '12px',
+      padding: '14px',
       borderRadius: '12px',
-      border: '1px solid #ddd',
+      border: '2px solid #f0f0f0',
       fontSize: '1rem',
       outline: 'none',
-      transition: 'border 0.3s',
-      backgroundColor: '#fff'
+      backgroundColor: '#fdfdfd',
+      transition: 'border-color 0.3s'
+    },
+    row: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: '15px'
     },
     submitBtn: {
       backgroundColor: '#9b59b6',
       color: 'white',
-      padding: '15px',
-      borderRadius: '12px',
+      padding: '16px',
+      borderRadius: '15px',
       border: 'none',
-      fontWeight: 'bold',
+      fontWeight: '900',
       fontSize: '1.1rem',
       cursor: 'pointer',
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
       gap: '10px',
-      marginTop: '10px'
+      marginTop: '10px',
+      boxShadow: '0 5px 15px rgba(155, 89, 182, 0.3)'
     }
   };
 
@@ -92,51 +102,50 @@ const PurchasesManager = ({ onPurchaseComplete }) => {
     <div style={styles.container}>
       <div style={styles.title}>
         <ShoppingCart size={28} />
-        <h2>إضافة مشتريات جديدة</h2>
+        <h2>إضافة مشتريات للمخزن</h2>
       </div>
 
       <form style={styles.form} onSubmit={handleAddPurchase}>
-        {/* اسم المادة التفصيلي */}
+        {/* الفئة المخزنية - الرف */}
         <div style={styles.inputGroup}>
-          <label style={styles.label}>اسم المنتج/المادة</label>
+          <label style={styles.label}><Layout size={18} /> القسم / الرف</label>
           <input 
             style={styles.input}
-            placeholder="مثلاً: خشب سويد نخب أول"
+            placeholder="اسم القسم (مثلاً: بولي إيثيلين)"
+            value={purchase.category}
+            onChange={(e) => setPurchase({...purchase, category: e.target.value})}
+          />
+        </div>
+
+        {/* اسم المنتج التفصيلي */}
+        <div style={styles.inputGroup}>
+          <label style={styles.label}><Tag size={18} /> تفاصيل البيان</label>
+          <input 
+            style={styles.input}
+            placeholder="وصف الشروة (مثلاً: خشب نخب أول)"
             value={purchase.itemName}
             onChange={(e) => setPurchase({...purchase, itemName: e.target.value})}
           />
         </div>
 
-        {/* الفئة المخزنية - تحولت إلى مدخل نصي حر */}
-        <div style={styles.inputGroup}>
-          <label style={styles.label}>الفئة المخزنية (الرف المراد الإضافة إليه)</label>
-          <input 
-            style={styles.input}
-            placeholder="اكتب اسم القسم (مثال: خشب زان، مواد خام...)"
-            value={purchase.category}
-            onChange={(e) => setPurchase({...purchase, category: e.target.value})}
-          />
-          <small style={{color: '#888', fontSize: '0.75rem'}}>
-            * إذا كتبت اسماً جديداً، سيتم إنشاء رف جديد له في المخزن تلقائياً.
-          </small>
-        </div>
-
-        <div style={{display: 'flex', gap: '10px'}}>
-          <div style={{...styles.inputGroup, flex: 1}}>
-            <label style={styles.label}>الكمية</label>
+        {/* الكمية والسعر في صف واحد واضح */}
+        <div style={styles.row}>
+          <div style={styles.inputGroup}>
+            <label style={styles.label}><Hash size={18} /> الكمية</label>
             <input 
               type="number"
-              style={styles.input}
+              style={{...styles.input, borderColor: '#e0e0e0'}}
               placeholder="0"
               value={purchase.quantity}
               onChange={(e) => setPurchase({...purchase, quantity: e.target.value})}
             />
           </div>
-          <div style={{...styles.inputGroup, flex: 1}}>
-            <label style={styles.label}>السعر الإجمالي</label>
+          <div style={styles.inputGroup}>
+            <label style={{...styles.label, color: '#27ae60'}}><Tag size={18} /> سعر الوحدة</label>
             <input 
               type="number"
-              style={styles.input}
+              step="0.01"
+              style={{...styles.input, borderColor: '#27ae6040'}}
               placeholder="0.00"
               value={purchase.price}
               onChange={(e) => setPurchase({...purchase, price: e.target.value})}
@@ -145,8 +154,8 @@ const PurchasesManager = ({ onPurchaseComplete }) => {
         </div>
 
         <button type="submit" style={styles.submitBtn}>
-          <PlusCircle size={22} />
-          تأكيد الشراء والترسيم بالمخزن
+          <PlusCircle size={24} />
+          تأكيد الإضافة للمخزن
         </button>
       </form>
     </div>
