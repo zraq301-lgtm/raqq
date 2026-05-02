@@ -1,75 +1,70 @@
-/* الإعدادات العامة - أحجام قياسية ومريحة */
+/* الإعدادات العامة - مريحة للعين ومناسبة للموبايل */
 .app-container {
   min-height: 100vh;
-  background-color: #fff5f7;
-  /* مساحة كافية للشريط السفلي المعتاد */
-  padding-bottom: 100px; 
+  background-color: #f8f9fa;
+  padding-bottom: 110px; 
   font-family: sans-serif;
-  font-size: 16px; /* حجم خط مثالي للموبايل */
+  font-size: 18px; /* تكبير الخط الأساسي قليلاً */
 }
 
-/* 1. الهيدر العلوي - متوازن وثابت */
+/* 1. الهيدر العلوي - ارتفاع متوسط وواضح */
 .main-nav {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1000;
-  background-color: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  height: 60px; /* تقليص من 140px */
+  background-color: white;
+  height: 75px; /* ارتفاع مريح للهيدر */
   display: flex;
   align-items: center;
-  padding: 0 16px;
-  border-bottom: 1px solid #ff4d7d1a;
+  padding: 0 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
 }
 
 .app-logo {
   color: #ff4d7d;
-  font-weight: 800;
-  font-size: 18px; /* تقليص من 40px */
+  font-weight: 900;
+  font-size: 22px;
 }
 
-/* 2. أيقونات الإحصائيات - أحجام ناعمة بجانب بعضها */
+/* 2. أيقونات الإحصائيات في الهيدر */
 .stats-container {
   display: flex;
-  flex-direction: row; /* ترتيب عرضي */
-  gap: 8px;
+  gap: 10px;
 }
 
 .stats-badge {
   display: flex;
   align-items: center;
-  background: white;
-  padding: 6px 12px; 
-  border-radius: 20px;
+  background: #fff5f7;
+  padding: 8px 14px; 
+  border-radius: 12px;
   border: 1px solid #ff4d7d26;
-  font-size: 14px; 
+  font-size: 16px; 
   font-weight: bold;
 }
 
 .stats-badge svg {
-  width: 20px !important; 
-  height: 20px !important;
-  margin-left: 6px;
+  width: 24px !important; 
+  height: 24px !important;
 }
 
-/* 3. شريط التنقل السفلي - ثابت وتصميم عصري */
+/* 3. شريط التنقل السفلي - أزرار سهلة الضغط */
 .bottom-nav {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 80px; /* تقليص من 200px[cite: 1] */
+  height: 85px; 
   background-color: white;
   display: flex;
-  flex-direction: row; 
   justify-content: space-around;
   align-items: center;
   z-index: 2000;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
-  border-top-left-radius: 25px;
-  border-top-right-radius: 25px;
+  box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.1);
+  border-top-left-radius: 30px;
+  border-top-right-radius: 30px;
 }
 
 .nav-item {
@@ -77,16 +72,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  background: none;
-  border: none;
   color: #a0aec0;
-  height: 100%;
 }
 
 .nav-item svg {
-  width: 28px !important; 
-  height: 28px !important;
+  width: 32px !important; /* أيقونات منيو واضحة */
+  height: 32px !important;
 }
 
 .nav-item.active {
@@ -94,52 +85,77 @@
 }
 
 .nav-label {
-  font-size: 12px; 
+  font-size: 13px; 
   font-weight: bold;
-  margin-top: 4px;
+  margin-top: 5px;
 }
 
-/* 4. زر الإنتاج المركزي (FAB) - حجم متوسط */
+/* 4. زر الإنتاج المركزي (FAB) - حجمه ذهبي */
 .fab-button-container {
   position: relative;
-  top: -20px; /* تقليص الارتفاع[cite: 1] */
+  top: -25px;
   z-index: 2100;
 }
 
 .fab-button {
-  width: 70px; /* تقليص من 170px */
-  height: 70px;
+  width: 80px; 
+  height: 80px;
   border-radius: 50%;
   background-color: #ff4d7d;
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 20px rgba(255, 77, 125, 0.3);
-  border: 5px solid white;
+  box-shadow: 0 8px 25px rgba(255, 77, 125, 0.4);
+  border: 6px solid white;
 }
 
 .fab-button svg {
-  width: 35px !important;
-  height: 35px !important;
+  width: 40px !important;
+  height: 40px !important;
 }
 
-/* 5. ضبط محتوى الصفحة ليبدأ بعد الهيدر */
+/* 5. ضبط محتوى الصفحة والشبكة (GRID) */
 .page-content {
-  padding: 16px;
-  margin-top: 70px; /* مسافة أمان بعد الهيدر[cite: 1] */
+  padding: 20px;
+  margin-top: 85px; 
 }
 
-/* ضبط الشبكة (Grid) لتناسب عرض الموبايل */
+/* تكبير البطاقات في الشبكة لتقليل الفراغات */
 .grid-container {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); 
-  gap: 16px;
+  /* جعل البطاقة الواحدة تأخذ مساحة أكبر */
+  grid-template-columns: repeat(2, 1fr); 
+  gap: 15px;
 }
 
-/* الأزرار العامة */
-button {
-  min-height: 50px;
+/* تنسيق البطاقة (Card) لتبدو أكبر وأوضح */
+.card {
+  background: white;
+  padding: 25px 15px; /* زيادة الحشو الداخلي */
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+/* تكبير الأيقونات داخل البطاقات البيضاء */
+.card svg {
+  width: 45px !important; /* حجم كبير وواضح للعين */
+  height: 45px !important;
+  margin-bottom: 5px;
+}
+
+.card-title {
   font-size: 16px;
-  border-radius: 12px;
+  color: #666;
+}
+
+.card-value {
+  font-size: 24px;
+  font-weight: 900;
+  color: #333;
 }
