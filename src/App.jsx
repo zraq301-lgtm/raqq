@@ -13,9 +13,10 @@ export default function App() {
   
   const [categories, setCategories] = useState(() => {
     const localData = localStorage.getItem('warehouse_data');
+    // إضافة السعر (price) للبيانات الافتراضية
     return localData ? JSON.parse(localData) : [
-      { id: 1, name: "قسم البولي إيثيلين", balance: 150, operations: [] },
-      { id: 2, name: "قسم الأصباغ الخام", balance: 45, operations: [] }
+      { id: 1, name: "قسم البولي إيثيلين", balance: 150, price: 0, operations: [] },
+      { id: 2, name: "قسم الأصباغ الخام", balance: 45, price: 0, operations: [] }
     ];
   });
 
@@ -25,7 +26,7 @@ export default function App() {
 
   const totalStock = categories.reduce((acc, cat) => acc + cat.balance, 0);
 
-  // --- دوال التحكم (لم تتغير) ---
+  // --- دوال التحكم (تم تحديثها لدعم السعر) ---
   const handleDeleteCategory = (id) => {
     if (window.confirm("هل تريد حذف هذا القسم؟")) {
       setCategories(prev => prev.filter(cat => cat.id !== id));
@@ -38,11 +39,33 @@ export default function App() {
       if (exists) {
         return prevCategories.map(item => 
           item.name === data.name 
-            ? { ...item, balance: item.balance + data.amount, operations: [...item.operations, { date: new Date().toLocaleDateString(), type: 'توريد', amount: data.amount, finalBalance: item.balance + data.amount }] } 
+            ? { 
+                ...item, 
+                balance: item.balance + data.amount, 
+                price: data.price || item.price, // تحديث السعر إذا توفر في المشتريات
+                operations: [...item.operations, { 
+                  date: new Date().toLocaleDateString(), 
+                  type: 'توريد', 
+                  amount: data.amount, 
+                  finalBalance: item.balance + data.amount 
+                }] 
+              } 
             : item
         );
       }
-      return [...prevCategories, { id: Date.now(), name: data.name, balance: data.amount, operations: [{ date: new Date().toLocaleDateString(), type: 'إضافة صنف', amount: data.amount, finalBalance: data.amount }] }];
+      // إضافة صنف جديد مع السعر
+      return [...prevCategories, { 
+        id: Date.now(), 
+        name: data.name, 
+        balance: data.amount, 
+        price: data.price || 0, // السعر الجديد
+        operations: [{ 
+          date: new Date().toLocaleDateString(), 
+          type: 'إضافة صنف', 
+          amount: data.amount, 
+          finalBalance: data.amount 
+        }] 
+      }];
     });
     setPage('inventory');
   };
