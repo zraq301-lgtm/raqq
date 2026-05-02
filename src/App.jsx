@@ -22,22 +22,9 @@ export default function App() {
     localStorage.setItem('warehouse_data', JSON.stringify(categories));
   }, [categories]);
 
-  // دالة لجلب اسم الصفحة الحالية لعرضه في الهيدر بشكل أنيق
-  const getPageTitle = () => {
-    switch(page) {
-      case 'home': return 'الرئيسية';
-      case 'dashboard': return 'لوحة التحكم';
-      case 'inventory': return 'إدارة المخزن';
-      case 'purchases': return 'المشتريات';
-      case 'production': return 'خط الإنتاج';
-      case 'reports': return 'التقارير';
-      default: return 'المخزن الذكي';
-    }
-  };
-
   const totalStock = categories.reduce((acc, cat) => acc + cat.balance, 0);
 
-  // --- دوال التحكم في البيانات (بدون أي تغيير) ---
+  // --- دوال التحكم في البيانات (بقيت كما هي تماماً) ---
   const handleDeleteCategory = (id) => {
     if (window.confirm("هل تريد حذف هذا القسم نهائياً من المخزن؟")) {
       setCategories(prev => prev.filter(cat => cat.id !== id));
@@ -50,30 +37,11 @@ export default function App() {
       if (exists) {
         return prevCategories.map(item => 
           item.name === data.name 
-            ? { 
-                ...item, 
-                balance: item.balance + data.amount,
-                operations: [...item.operations, {
-                  date: new Date().toLocaleDateString(),
-                  type: 'توريد مشتريات',
-                  amount: data.amount,
-                  finalBalance: item.balance + data.amount
-                }]
-              } 
+            ? { ...item, balance: item.balance + data.amount, operations: [...item.operations, { date: new Date().toLocaleDateString(), type: 'توريد مشتريات', amount: data.amount, finalBalance: item.balance + data.amount }] } 
             : item
         );
       } else {
-        return [...prevCategories, {
-          id: Date.now(),
-          name: data.name,
-          balance: data.amount,
-          operations: [{
-            date: new Date().toLocaleDateString(),
-            type: 'إضافة صنف جديد',
-            amount: data.amount,
-            finalBalance: data.amount
-          }]
-        }];
+        return [...prevCategories, { id: Date.now(), name: data.name, balance: data.amount, operations: [{ date: new Date().toLocaleDateString(), type: 'إضافة صنف جديد', amount: data.amount, finalBalance: data.amount }] }];
       }
     });
     setPage('inventory');
@@ -82,25 +50,13 @@ export default function App() {
   const handleProductionSync = (data) => {
     setCategories(prevCategories => {
       const targetCategory = prevCategories.find(cat => cat.name === data.categoryName);
-      if (!targetCategory) return prevCategories;
-
-      if (targetCategory.balance < data.amount) {
-        alert(`عفواً! الكمية لا تكفي. المتوفر: ${targetCategory.balance}`);
+      if (!targetCategory || targetCategory.balance < data.amount) {
+        if (targetCategory) alert(`عفواً! الكمية لا تكفي. المتوفر: ${targetCategory.balance}`);
         return prevCategories;
       }
-
       return prevCategories.map(item => 
         item.name === data.categoryName 
-          ? { 
-              ...item, 
-              balance: item.balance - data.amount,
-              operations: [...item.operations, {
-                date: new Date().toLocaleDateString(),
-                type: `سحب للإنتاج (${data.productionLine})`,
-                amount: data.amount,
-                finalBalance: item.balance - data.amount
-              }]
-            } 
+          ? { ...item, balance: item.balance - data.amount, operations: [...item.operations, { date: new Date().toLocaleDateString(), type: `سحب للإنتاج (${data.productionLine})`, amount: data.amount, finalBalance: item.balance - data.amount }] } 
           : item
       );
     });
@@ -110,103 +66,71 @@ export default function App() {
   const handleUpdate = (id, type) => {
     const val = parseFloat(prompt(type === 'IN' ? "كمية التوريد؟" : "كمية السحب؟"));
     if (!val || val <= 0) return;
-
     setCategories(prev => prev.map(cat => {
       if (cat.id === id) {
         const newBalance = type === 'IN' ? cat.balance + val : cat.balance - val;
         if (newBalance < 0) { alert("المخزن لا يكفي!"); return cat; }
-        return {
-          ...cat,
-          balance: newBalance,
-          operations: [...cat.operations, {
-            date: new Date().toLocaleDateString(),
-            type: type === 'IN' ? 'تعديل (إضافة)' : 'تعديل (سحب)',
-            amount: val,
-            finalBalance: newBalance
-          }]
-        };
+        return { ...cat, balance: newBalance, operations: [...cat.operations, { date: new Date().toLocaleDateString(), type: type === 'IN' ? 'تعديل (إضافة)' : 'تعديل (سحب)', amount: val, finalBalance: newBalance }] };
       }
       return cat;
     }));
   };
 
   return (
-    <div className="min-h-screen bg-[#fff5f7] pb-28" dir="rtl">
+    <div className="min-h-screen bg-[#fff5f7] pb-24" dir="rtl">
       
-      {/* الهيدر العلوي المطور مع اسم القسم */}
-      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b-2 border-[#ff4d7d1a] px-4 shadow-sm">
-        <div className="flex flex-col items-center py-2">
-          {/* اسم القسم الحالي بشكل أنيق */}
-          <div className="mb-2 bg-[#ff4d7d] text-white px-6 py-1 rounded-full text-xs font-bold shadow-md">
-            {getPageTitle()}
-          </div>
+      {/* الهيدر العلوي: نحيف جداً، أيقونات بجانب بعضها، ثابت */}
+      <nav className="sticky top-0 z-50 bg-white shadow-sm border-b border-[#ff4d7d1a] h-12 flex items-center px-4">
+        <div className="flex justify-between items-center w-full max-w-4xl mx-auto">
+          
+          {/* اسم التطبيق الصغير جداً */}
+          <span className="text-[#ff4d7d] font-black text-sm tracking-tighter">المخزن الذكي</span>
 
-          <div className="flex justify-center gap-3 w-full">
-            {/* بطاقة إجمالي المخزون */}
-            <div className="flex items-center bg-white border border-[#ff4d7d26] rounded-2xl px-3 py-1 shadow-sm">
-              <div className="w-8 h-8 rounded-full bg-[#ff4d7d1a] flex items-center justify-center text-[#ff4d7d] ml-2">
-                <Package size={18} />
-              </div>
-              <div className="text-right">
-                <p className="text-[9px] font-bold text-[#ff4d7d] m-0">المخزون</p>
-                <p className="text-xs font-black text-gray-700 m-0">{totalStock}</p>
-              </div>
+          {/* أيقونات الإحصائيات بجانب بعضها بشكل أفقي أنيق */}
+          <div className="flex gap-2">
+            <div className="flex items-center bg-[#ff4d7d0d] px-2 py-1 rounded-lg border border-[#ff4d7d1a]">
+              <Package size={14} className="text-[#ff4d7d] ml-1" />
+              <span className="text-[11px] font-bold text-gray-700">{totalStock}</span>
             </div>
-
-            {/* بطاقة عدد الأقسام */}
-            <div className="flex items-center bg-white border border-[#ff4d7d26] rounded-2xl px-3 py-1 shadow-sm">
-              <div className="w-8 h-8 rounded-full bg-[#ff4d7d1a] flex items-center justify-center text-[#ff4d7d] ml-2">
-                <Activity size={18} />
-              </div>
-              <div className="text-right">
-                <p className="text-[9px] font-bold text-[#ff4d7d] m-0">الأقسام</p>
-                <p className="text-xs font-black text-gray-700 m-0">{categories.length}</p>
-              </div>
+            
+            <div className="flex items-center bg-[#ff4d7d0d] px-2 py-1 rounded-lg border border-[#ff4d7d1a]">
+              <Activity size={14} className="text-[#ff4d7d] ml-1" />
+              <span className="text-[11px] font-bold text-gray-700">{categories.length}</span>
             </div>
           </div>
+
         </div>
       </nav>
 
-      {/* عرض الصفحات */}
+      {/* محتوى الصفحة الرئيسي */}
       <main className="container mx-auto p-4 max-w-4xl">
         {page === 'home' && <HomeView categories={categories} />}
         {page === 'dashboard' && <Dashboard categories={categories} />}
-        {page === 'inventory' && (
-          <Inventory 
-            categories={categories} 
-            onDelete={handleDeleteCategory} 
-            onUpdate={handleUpdate} 
-          />
-        )}
+        {page === 'inventory' && <Inventory categories={categories} onDelete={handleDeleteCategory} onUpdate={handleUpdate} />}
         {page === 'purchases' && <PurchasesManager onPurchaseComplete={handleNewPurchase} />}
-        {page === 'production' && (
-          <ProductionManager 
-            categories={categories} 
-            onProductionComplete={handleProductionSync} 
-          />
-        )}
+        {page === 'production' && <ProductionManager categories={categories} onProductionComplete={handleProductionSync} />}
         {page === 'reports' && <Reports categories={categories} />}
       </main>
 
-      {/* المنيو السفلي */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white shadow-[0_-6px_20px_rgba(255,77,125,0.1)] rounded-t-[30px] h-20 px-4 z-50">
-        <div className="flex justify-around items-center h-full">
-          <NavItem active={page === 'home'} onClick={() => setPage('home')} icon={<Home size={28} />} label="الرئيسية" />
-          <NavItem active={page === 'dashboard'} onClick={() => setPage('dashboard')} icon={<LayoutDashboard size={28} />} label="البيانات" />
-          <NavItem active={page === 'purchases'} onClick={() => setPage('purchases')} icon={<ShoppingCart size={28} />} label="مشتريات" />
+      {/* القائمة السفلية الثابتة */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm shadow-[0_-4px_15px_rgba(0,0,0,0.05)] h-16 px-2 z-50 border-t border-gray-100">
+        <div className="flex justify-around items-center h-full max-w-4xl mx-auto">
+          <NavItem active={page === 'home'} onClick={() => setPage('home')} icon={<Home size={22} />} label="الرئيسية" />
+          <NavItem active={page === 'dashboard'} onClick={() => setPage('dashboard')} icon={<LayoutDashboard size={22} />} label="البيانات" />
           
-          <div className="relative -top-5">
+          {/* زر الإنتاج المركزي */}
+          <div className="relative -top-3">
             <button 
               onClick={() => setPage('production')}
-              className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg border-4 transition-all duration-300 ${page === 'production' ? 'bg-[#ff4d7d] border-white text-white scale-110' : 'bg-white border-[#ff4d7d] text-[#ff4d7d]'}`}
+              className={`w-14 h-14 rounded-full flex items-center justify-center shadow-md transition-all ${page === 'production' ? 'bg-[#ff4d7d] text-white scale-110' : 'bg-white text-[#ff4d7d] border border-[#ff4d7d33]'}`}
             >
-              <Factory size={32} />
+              <Factory size={26} />
             </button>
-            <p className="text-[10px] font-bold text-[#ff4d7d] text-center mt-1">الإنتاج</p>
           </div>
 
-          <NavItem active={page === 'inventory'} onClick={() => setPage('inventory')} icon={<Box size={28} />} label="المخزن" />
-          <NavItem active={page === 'reports'} onClick={() => setPage('reports')} icon={<FileText size={28} />} label="تقارير" />
+          <NavItem active={page === 'inventory'} onClick={() => setPage('inventory')} icon={<Box size={22} />} label="المخزن" />
+          <NavItem active={page === 'reports'} onClick={() => setPage('reports')} icon={<FileText size={22} />} label="تقارير" />
+          <NavItem active={page === 'purchases'} onClick={() => setPage('purchases')} icon={<ShoppingCart size={22} />} label="مشتريات" />
         </div>
       </div>
     </div>
@@ -216,13 +140,9 @@ export default function App() {
 const NavItem = ({ active, onClick, icon, label }) => (
   <button 
     onClick={onClick} 
-    className={`flex flex-col items-center transition-all duration-300 ${active ? 'scale-110' : 'opacity-50 hover:opacity-100'}`}
+    className={`flex flex-col items-center justify-center min-w-[60px] transition-all ${active ? 'text-[#ff4d7d]' : 'text-gray-400'}`}
   >
-    <div className={`p-1 ${active ? 'text-[#ff4d7d]' : 'text-gray-500'}`}>
-      {icon}
-    </div>
-    <span className={`text-[10px] font-bold mt-1 ${active ? 'text-[#ff4d7d]' : 'text-gray-400'}`}>
-      {label}
-    </span>
+    {icon}
+    <span className="text-[9px] font-bold mt-1">{label}</span>
   </button>
 );
