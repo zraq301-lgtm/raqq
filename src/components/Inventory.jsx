@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trash2, Box, Layers, AlertCircle, Tag, DollarSign } from 'lucide-react';
+import { Trash2, Box, Layers, AlertCircle, Tag } from 'lucide-react';
 
 const Inventory = ({ categories, onDelete }) => {
   const styles = {
@@ -17,7 +17,7 @@ const Inventory = ({ categories, onDelete }) => {
       color: '#1e293b',
       marginBottom: '30px',
       display: 'flex',
-      align-items: 'center',
+      alignItems: 'center', // تم الإصلاح هنا (بدل align-items)
       gap: '12px',
       borderBottom: '2px solid #e2e8f0',
       paddingBottom: '15px'
@@ -44,9 +44,9 @@ const Inventory = ({ categories, onDelete }) => {
       fontWeight: '700',
       color: '#334155',
       display: 'flex',
-      alignItems: 'center',
+      alignItems: 'center', // تم الإصلاح هنا
       gap: '8px',
-      paddingLeft: '35px' // لتجنب تداخل الاسم مع زر الحذف
+      paddingLeft: '35px'
     },
     dataContainer: {
       display: 'flex',
@@ -59,14 +59,14 @@ const Inventory = ({ categories, onDelete }) => {
     },
     dataRow: {
       display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center'
+      justifyContent: 'space-between', // تم الإصلاح هنا (بدل justify-content)
+      alignItems: 'center' // تم الإصلاح هنا
     },
     label: {
       fontSize: '0.85rem',
       color: '#64748b',
       display: 'flex',
-      alignItems: 'center',
+      alignItems: 'center', // تم الإصلاح هنا
       gap: '5px'
     },
     value: {
@@ -79,13 +79,13 @@ const Inventory = ({ categories, onDelete }) => {
       paddingTop: '10px',
       borderTop: '2px dashed #cbd5e1',
       display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center'
+      justifyContent: 'space-between', // تم الإصلاح هنا
+      alignItems: 'center' // تم الإصلاح هنا
     },
     totalValue: {
       fontSize: '1.3rem',
       fontWeight: '900',
-      color: '#10b981' // لون أخضر للإجمالي
+      color: '#10b981'
     },
     deleteArea: {
       position: 'absolute',
@@ -101,8 +101,8 @@ const Inventory = ({ categories, onDelete }) => {
       borderRadius: '8px',
       cursor: 'pointer',
       display: 'flex',
-      alignItems: 'center',
-      justify(content): 'center',
+      alignItems: 'center', // تم الإصلاح هنا
+      justifyContent: 'center', // تم الإصلاح هنا
     }
   };
 
@@ -110,7 +110,7 @@ const Inventory = ({ categories, onDelete }) => {
     <div style={styles.container}>
       <div style={styles.shelfTitle}>
         <Layers size={28} color="#2563eb" />
-        <span>رفوف المخزون المحدثة</span>
+        <span>رفوف المخزون الحالية</span>
       </div>
 
       <div style={styles.shelfGrid}>
@@ -122,24 +122,20 @@ const Inventory = ({ categories, onDelete }) => {
         ) : (
           categories.map((cat) => (
             <div key={cat.id} style={styles.shelfItem}>
-              {/* زر الحذف */}
               <div style={styles.deleteArea}>
                 <button 
                   onClick={() => onDelete(cat.id)}
                   style={styles.btnDelete}
-                  title="إزالة الرف"
                 >
                   <Trash2 size={18} />
                 </button>
               </div>
 
-              {/* اسم الصنف */}
               <div style={styles.itemName}>
                 <Box size={20} color="#3b82f6" />
                 {cat.name}
               </div>
 
-              {/* تفاصيل البيانات (الكمية والسعر) */}
               <div style={styles.dataContainer}>
                 <div style={styles.dataRow}>
                   <span style={styles.label}>الكمية المتاحة:</span>
@@ -153,7 +149,6 @@ const Inventory = ({ categories, onDelete }) => {
                   <span style={styles.value}>{cat.price || 0} ج.م</span>
                 </div>
 
-                {/* حساب الإجمالي تلقائياً */}
                 <div style={styles.totalSection}>
                   <span style={{...styles.label, fontWeight: 'bold', color: '#1e293b'}}>إجمالي القيمة:</span>
                   <span style={styles.totalValue}>
