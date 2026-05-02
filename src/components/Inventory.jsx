@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trash2, Box, Layers, AlertCircle } from 'lucide-react';
+import { Trash2, Box, Layers, AlertCircle, Tag, DollarSign } from 'lucide-react';
 
 const Inventory = ({ categories, onDelete }) => {
   const styles = {
@@ -17,7 +17,7 @@ const Inventory = ({ categories, onDelete }) => {
       color: '#1e293b',
       marginBottom: '30px',
       display: 'flex',
-      alignItems: 'center',
+      align-items: 'center',
       gap: '12px',
       borderBottom: '2px solid #e2e8f0',
       paddingBottom: '15px'
@@ -29,43 +29,69 @@ const Inventory = ({ categories, onDelete }) => {
     },
     shelfItem: {
       background: '#ffffff',
-      borderRadius: '12px',
+      borderRadius: '16px',
       padding: '20px',
-      borderBottom: '5px solid #3b82f6',
+      borderBottom: '6px solid #3b82f6',
       boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.05)',
       position: 'relative',
       display: 'flex',
       flexDirection: 'column',
-      justifyContent: 'space-between',
-      minHeight: '140px'
+      gap: '15px',
+      minHeight: '200px'
     },
     itemName: {
-      fontSize: '1.1rem',
+      fontSize: '1.2rem',
       fontWeight: '700',
       color: '#334155',
       display: 'flex',
       alignItems: 'center',
-      gap: '8px'
+      gap: '8px',
+      paddingLeft: '35px' // لتجنب تداخل الاسم مع زر الحذف
     },
-    quantityDisplay: {
-      marginTop: '15px',
-      textAlign: 'center',
-      padding: '10px',
+    dataContainer: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '10px',
       backgroundColor: '#f8fafc',
-      borderRadius: '8px',
-      border: '1px dashed #cbd5e1'
+      padding: '12px',
+      borderRadius: '12px',
+      border: '1px solid #e2e8f0'
     },
-    number: {
-      fontSize: '1.8rem',
+    dataRow: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center'
+    },
+    label: {
+      fontSize: '0.85rem',
+      color: '#64748b',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '5px'
+    },
+    value: {
+      fontSize: '1.1rem',
+      fontWeight: '800',
+      color: '#1e293b'
+    },
+    totalSection: {
+      marginTop: '5px',
+      paddingTop: '10px',
+      borderTop: '2px dashed #cbd5e1',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center'
+    },
+    totalValue: {
+      fontSize: '1.3rem',
       fontWeight: '900',
-      color: '#2563eb',
-      display: 'block'
+      color: '#10b981' // لون أخضر للإجمالي
     },
     deleteArea: {
       position: 'absolute',
-      top: '10px',
-      left: '10px',
-      zIndex: 10 // لضمان ظهور الزر فوق أي عنصر آخر
+      top: '15px',
+      left: '15px',
+      zIndex: 10
     },
     btnDelete: {
       background: '#fff1f2',
@@ -76,7 +102,7 @@ const Inventory = ({ categories, onDelete }) => {
       cursor: 'pointer',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'center',
+      justify(content): 'center',
     }
   };
 
@@ -84,7 +110,7 @@ const Inventory = ({ categories, onDelete }) => {
     <div style={styles.container}>
       <div style={styles.shelfTitle}>
         <Layers size={28} color="#2563eb" />
-        <span>رفوف المخزون الحالية</span>
+        <span>رفوف المخزون المحدثة</span>
       </div>
 
       <div style={styles.shelfGrid}>
@@ -96,9 +122,10 @@ const Inventory = ({ categories, onDelete }) => {
         ) : (
           categories.map((cat) => (
             <div key={cat.id} style={styles.shelfItem}>
+              {/* زر الحذف */}
               <div style={styles.deleteArea}>
                 <button 
-                  onClick={() => onDelete(cat.id)} // استدعاء دالة الحذف
+                  onClick={() => onDelete(cat.id)}
                   style={styles.btnDelete}
                   title="إزالة الرف"
                 >
@@ -106,14 +133,33 @@ const Inventory = ({ categories, onDelete }) => {
                 </button>
               </div>
 
+              {/* اسم الصنف */}
               <div style={styles.itemName}>
-                <Box size={18} color="#64748b" />
+                <Box size={20} color="#3b82f6" />
                 {cat.name}
               </div>
 
-              <div style={styles.quantityDisplay}>
-                <span style={styles.number}>{cat.balance}</span>
-                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>وحدة متاحة</span>
+              {/* تفاصيل البيانات (الكمية والسعر) */}
+              <div style={styles.dataContainer}>
+                <div style={styles.dataRow}>
+                  <span style={styles.label}>الكمية المتاحة:</span>
+                  <span style={styles.value}>{cat.balance} وحدة</span>
+                </div>
+                
+                <div style={styles.dataRow}>
+                  <span style={styles.label}>
+                    <Tag size={14} /> سعر الوحدة:
+                  </span>
+                  <span style={styles.value}>{cat.price || 0} ج.م</span>
+                </div>
+
+                {/* حساب الإجمالي تلقائياً */}
+                <div style={styles.totalSection}>
+                  <span style={{...styles.label, fontWeight: 'bold', color: '#1e293b'}}>إجمالي القيمة:</span>
+                  <span style={styles.totalValue}>
+                    {(cat.balance * (cat.price || 0)).toLocaleString()} ج.م
+                  </span>
+                </div>
               </div>
             </div>
           ))
