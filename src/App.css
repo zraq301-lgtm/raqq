@@ -3,8 +3,8 @@
   min-height: 100vh;
   background-color: #f8f9fa;
   padding-bottom: 110px; 
-  font-family: sans-serif;
-  font-size: 18px; /* تكبير الخط الأساسي قليلاً */
+  font-family: 'Tajawal', sans-serif;
+  font-size: 18px; /* تكبير الخط الأساسي قليلاً لسهولة القراءة */
 }
 
 /* 1. الهيدر العلوي - ارتفاع متوسط وواضح */
@@ -15,7 +15,7 @@
   right: 0;
   z-index: 1000;
   background-color: white;
-  height: 75px; /* ارتفاع مريح للهيدر */
+  height: 75px; 
   display: flex;
   align-items: center;
   padding: 0 20px;
@@ -76,7 +76,7 @@
 }
 
 .nav-item svg {
-  width: 32px !important; /* أيقونات منيو واضحة */
+  width: 32px !important; 
   height: 32px !important;
 }
 
@@ -90,7 +90,7 @@
   margin-top: 5px;
 }
 
-/* 4. زر الإنتاج المركزي (FAB) - حجمه ذهبي */
+/* 4. زر الإنتاج المركزي (FAB) */
 .fab-button-container {
   position: relative;
   top: -25px;
@@ -110,41 +110,33 @@
   border: 6px solid white;
 }
 
-.fab-button svg {
-  width: 40px !important;
-  height: 40px !important;
-}
-
 /* 5. ضبط محتوى الصفحة والشبكة (GRID) */
 .page-content {
   padding: 20px;
   margin-top: 85px; 
 }
 
-/* تكبير البطاقات في الشبكة لتقليل الفراغات */
 .grid-container {
   display: grid;
-  /* جعل البطاقة الواحدة تأخذ مساحة أكبر */
   grid-template-columns: repeat(2, 1fr); 
   gap: 15px;
 }
 
-/* تنسيق البطاقة (Card) لتبدو أكبر وأوضح */
+/* تنسيق البطاقة (Card) المطور */
 .card {
   background: white;
-  padding: 25px 15px; /* زيادة الحشو الداخلي */
+  padding: 25px 15px; 
   border-radius: 20px;
   text-align: center;
   box-shadow: 0 4px 12px rgba(0,0,0,0.03);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
-/* تكبير الأيقونات داخل البطاقات البيضاء */
 .card svg {
-  width: 45px !important; /* حجم كبير وواضح للعين */
+  width: 45px !important;
   height: 45px !important;
   margin-bottom: 5px;
 }
@@ -152,6 +144,29 @@
 .card-title {
   font-size: 16px;
   color: #666;
+}
+
+/* تنسيق السعر (المضاف والمعدل) */
+.price-tag {
+  color: #27ae60; /* لون أخضر مريح للعين */
+  font-weight: 800;
+  font-size: 18px;
+  background: #eafaf1;
+  padding: 6px 12px;
+  border-radius: 10px;
+  margin-top: 8px;
+  display: inline-block;
+}
+
+/* تنسيق القيمة الإجمالية (المضاف والمعدل) */
+.total-value {
+  font-size: 13px;
+  color: #7f8c8d;
+  border-top: 1px dashed #eee; /* استخدام خط مقطع يعطي شكلاً أرقى */
+  padding-top: 8px;
+  margin-top: 5px;
+  width: 100%;
+  font-weight: bold;
 }
 
 .card-value {
