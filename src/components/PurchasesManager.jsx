@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShoppingCart, PlusCircle, Tag, Hash, Layout } from 'lucide-react';
+import { ShoppingCart, PlusCircle, Tag, Hash, Layout, BaggageClaim, DollarSign } from 'lucide-react';
 
 const PurchasesManager = ({ onPurchaseComplete }) => {
   const [purchase, setPurchase] = useState({
@@ -11,141 +11,146 @@ const PurchasesManager = ({ onPurchaseComplete }) => {
 
   const handleAddPurchase = (e) => {
     e.preventDefault();
-    
     if (!purchase.itemName || !purchase.quantity || !purchase.category || !purchase.price) {
-      alert("يرجى ملء كافة البيانات بما في ذلك سعر الوحدة");
+      alert("يرجى تعبئة كافة بيانات الكرت للمتابعة");
       return;
     }
 
-    // إرسال البيانات (تأكدنا هنا من إضافة السعر ليتم استقباله في App.jsx)
     onPurchaseComplete({
       name: purchase.category.trim(),
       amount: parseInt(purchase.quantity),
-      price: parseFloat(purchase.price), // إضافة السعر هنا
+      price: parseFloat(purchase.price),
       details: purchase.itemName
     });
 
     setPurchase({ itemName: '', quantity: '', category: '', price: '' });
-    alert("تمت الإضافة للمشتريات وتحديث المخزن بنجاح!");
   };
 
   const styles = {
-    container: {
-      width: '100%',
-      backgroundColor: '#ffffff',
+    wrapper: {
+      padding: '15px',
+      backgroundColor: '#f8fafc',
+      minHeight: '100vh',
+      direction: 'rtl',
+      fontFamily: "'Tajawal', sans-serif"
+    },
+    headerCard: {
+      background: 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)',
       borderRadius: '20px',
       padding: '20px',
-      boxShadow: '0 10px 25px rgba(0,0,0,0.05)',
-      direction: 'rtl',
-      fontFamily: "'Tajawal', sans-serif",
-      boxSizing: 'border-box'
-    },
-    title: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px',
-      color: '#9b59b6',
+      color: 'white',
       marginBottom: '20px',
-      fontSize: '1.3rem',
-      fontWeight: 'bold'
-    },
-    form: {
-      display: 'grid',
-      gap: '15px'
-    },
-    inputGroup: {
+      boxShadow: '0 10px 20px rgba(155, 89, 182, 0.2)',
       display: 'flex',
-      flexDirection: 'column',
-      gap: '8px'
+      justifyContent: 'space-between',
+      alignItems: 'center'
     },
-    label: { 
-      fontWeight: 'bold', 
-      color: '#444', 
-      fontSize: '0.95rem',
+    inputCard: {
+      background: '#ffffff',
+      borderRadius: '18px',
+      padding: '20px',
+      marginBottom: '15px',
+      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+      border: '1px solid #e2e8f0'
+    },
+    label: {
       display: 'flex',
       alignItems: 'center',
-      gap: '5px'
+      gap: '8px',
+      fontSize: '0.9rem',
+      color: '#64748b',
+      marginBottom: '10px',
+      fontWeight: '600'
     },
     input: {
-      padding: '14px',
-      borderRadius: '12px',
-      border: '2px solid #f0f0f0',
-      fontSize: '1rem',
+      width: '100%',
+      padding: '12px 0',
+      fontSize: '1.1rem',
+      border: 'none',
+      borderBottom: '2px solid #f1f5f9',
       outline: 'none',
-      backgroundColor: '#fdfdfd',
+      color: '#1e293b',
+      backgroundColor: 'transparent',
       transition: 'border-color 0.3s'
     },
-    row: {
+    gridRow: {
       display: 'grid',
       gridTemplateColumns: '1fr 1fr',
       gap: '15px'
     },
-    submitBtn: {
+    submitArea: {
+      marginTop: '20px',
+      paddingBottom: '100px'
+    },
+    btnMain: {
+      width: '100%',
       backgroundColor: '#9b59b6',
       color: 'white',
-      padding: '16px',
+      padding: '18px',
       borderRadius: '15px',
       border: 'none',
-      fontWeight: '900',
       fontSize: '1.1rem',
-      cursor: 'pointer',
+      fontWeight: 'bold',
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
       gap: '10px',
-      marginTop: '10px',
-      boxShadow: '0 5px 15px rgba(155, 89, 182, 0.3)'
+      boxShadow: '0 8px 15px rgba(155, 89, 182, 0.3)'
     }
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.title}>
-        <ShoppingCart size={28} />
-        <h2>إضافة مشتريات للمخزن</h2>
+    <div style={styles.wrapper}>
+      {/* كارت العنوان العلوي */}
+      <div style={styles.headerCard}>
+        <div>
+          <h2 style={{margin: 0, fontSize: '1.2rem'}}>توريد مواد خام</h2>
+          <p style={{margin: 0, fontSize: '0.8rem', opacity: 0.8}}>إضافة مشتريات جديدة للمصنع</p>
+        </div>
+        <ShoppingCart size={32} />
       </div>
 
-      <form style={styles.form} onSubmit={handleAddPurchase}>
-        {/* الفئة المخزنية - الرف */}
-        <div style={styles.inputGroup}>
-          <label style={styles.label}><Layout size={18} /> القسم / الرف</label>
+      <form onSubmit={handleAddPurchase}>
+        {/* كارت القسم */}
+        <div style={styles.inputCard}>
+          <label style={styles.label}><Layout size={18} /> القسم المخزني</label>
           <input 
             style={styles.input}
-            placeholder="اسم القسم (مثلاً: بولي إيثيلين)"
+            placeholder="مثلاً: قسم العجوة"
             value={purchase.category}
             onChange={(e) => setPurchase({...purchase, category: e.target.value})}
           />
         </div>
 
-        {/* اسم المنتج التفصيلي */}
-        <div style={styles.inputGroup}>
-          <label style={styles.label}><Tag size={18} /> تفاصيل البيان</label>
+        {/* كارت البيان التفصيلي */}
+        <div style={styles.inputCard}>
+          <label style={styles.label}><BaggageClaim size={18} /> تفاصيل المادة</label>
           <input 
             style={styles.input}
-            placeholder="وصف الشروة (مثلاً: خشب نخب أول)"
+            placeholder="مثلاً: عجوة المدينة نخب أول"
             value={purchase.itemName}
             onChange={(e) => setPurchase({...purchase, itemName: e.target.value})}
           />
         </div>
 
-        {/* الكمية والسعر في صف واحد واضح */}
-        <div style={styles.row}>
-          <div style={styles.inputGroup}>
+        {/* كروت الكمية والسعر (جنب بعض) */}
+        <div style={styles.gridRow}>
+          <div style={styles.inputCard}>
             <label style={styles.label}><Hash size={18} /> الكمية</label>
             <input 
               type="number"
-              style={{...styles.input, borderColor: '#e0e0e0'}}
+              style={styles.input}
               placeholder="0"
               value={purchase.quantity}
               onChange={(e) => setPurchase({...purchase, quantity: e.target.value})}
             />
           </div>
-          <div style={styles.inputGroup}>
-            <label style={{...styles.label, color: '#27ae60'}}><Tag size={18} /> سعر الوحدة</label>
+          <div style={{...styles.inputCard, borderColor: '#9b59b640'}}>
+            <label style={{...styles.label, color: '#9b59b6'}}><DollarSign size={18} /> السعر</label>
             <input 
               type="number"
               step="0.01"
-              style={{...styles.input, borderColor: '#27ae6040'}}
+              style={styles.input}
               placeholder="0.00"
               value={purchase.price}
               onChange={(e) => setPurchase({...purchase, price: e.target.value})}
@@ -153,10 +158,12 @@ const PurchasesManager = ({ onPurchaseComplete }) => {
           </div>
         </div>
 
-        <button type="submit" style={styles.submitBtn}>
-          <PlusCircle size={24} />
-          تأكيد الإضافة للمخزن
-        </button>
+        <div style={styles.submitArea}>
+          <button type="submit" style={styles.btnMain}>
+            <PlusCircle size={24} />
+            تأكيد وإضافة للمخزن
+          </button>
+        </div>
       </form>
     </div>
   );
