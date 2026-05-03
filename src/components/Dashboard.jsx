@@ -1,11 +1,13 @@
 import React from 'react';
+// استدعاء ملف التنسيق من المسار الأساسي src/App.css
+import '../App.css'; 
 import { 
   ShoppingCart, Tag, Factory, Warehouse, Trash2, 
   Wallet, Truck, RotateCcw, BarChart3, FileText, Users 
 } from 'lucide-react';
 
 const Dashboard = ({ activePage, setActivePage }) => {
-  // تعريف الأقسام الـ 11 بناءً على صورتك المحللة
+  // تعريف الأقسام الـ 11 بناءً على الهيكلية المعتمدة للمشروع
   const sections = [
     { id: 'purchases', title: 'المشتريات', icon: <ShoppingCart />, color: '#9b59b6' },
     { id: 'sales', title: 'المبيعات', icon: <Tag />, color: '#2ecc71' },
@@ -28,7 +30,10 @@ const Dashboard = ({ activePage, setActivePage }) => {
             key={sec.id} 
             className="card" 
             onClick={() => setActivePage(sec.id)}
-            style={{ borderTop: `5px solid ${sec.color}`, cursor: 'pointer' }}
+            style={{ 
+              borderTop: `5px solid ${sec.color}`, 
+              cursor: 'pointer'
+            }}
           >
             <div style={{ color: sec.color }}>{sec.icon}</div>
             <span className="card-title">{sec.title}</span>
