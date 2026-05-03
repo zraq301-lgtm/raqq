@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-// استيراد لوحة التحكم والأقسام من المسار الصحيح
 import Dashboard from './components/Dashboard';
+import PurchasesManager from './components/PurchasesManager'; // تم الربط هنا
 import Sales from './components/Sales';
 import Waste from './components/Waste';
 import Expenses from './components/Expenses';
@@ -8,9 +8,6 @@ import Suppliers from './components/Suppliers';
 import Financials from './components/Financials';
 import Reports from './components/Reports';
 import Customers from './components/Customers';
-
-// ملاحظة: تأكد من وجود ملفات Purchases و Production و Inventory و Returns 
-// داخل مجلد components ليعمل الكود بدون أخطاء
 
 const App = () => {
   const [activePage, setActivePage] = useState('dashboard');
@@ -25,10 +22,16 @@ const App = () => {
 
   // --- دوال الربط الذكي ونقل البيانات ---
   
+  // دالة حفظ المشتريات وتحديث المخزن
+  const handleSavePurchase = (newPurchase) => {
+    setInventory([...inventory, newPurchase]);
+    // اختيارياً: يمكن إضافة المورد لقائمة الموردين إذا لم يكن موجوداً
+    setActivePage('dashboard');
+  };
+
   // عند تسجيل عملية بيع
   const handleSaveSale = (newSale) => {
     setSalesData([...salesData, newSale]);
-    // هنا يمكن إضافة منطق لخصم الكمية من المخزن تلقائياً
     setActivePage('dashboard');
   };
 
@@ -40,22 +43,28 @@ const App = () => {
   // عند تسجيل هالك
   const handleSaveWaste = (newWaste) => {
     setWaste([...waste, newWaste]);
-    // خصم الهالك من المخزن
   };
 
   // حساب الإحصائيات المالية للقوائم المالية
   const financialStats = {
-    income: salesData.reduce((sum, item) => sum + item.total, 0),
+    income: salesData.reduce((sum, item) => sum + (item.total || 0), 0),
     expenses: expenses.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0),
-    wasteValue: waste.length * 50 // مثال: قيمة تقديرية للهالك
+    wasteValue: waste.length * 50 
   };
 
-  // --- محرك عرض الصفحات (التبديل بين الـ 11 قسم) ---
+  // --- محرك عرض الصفحات ---
   const renderPage = () => {
     switch(activePage) {
       case 'dashboard': 
         return <Dashboard setActivePage={setActivePage} />;
       
+      // تفعيل قسم المشتريات الجديد بالأزرار الثلاثة
+      case 'purchases': 
+        return <PurchasesManager 
+          onBack={() => setActivePage('dashboard')} 
+          onPurchaseComplete={handleSavePurchase} 
+        />;
+
       case 'sales': 
         return <Sales 
           onBack={() => setActivePage('dashboard')} 
@@ -102,15 +111,19 @@ const App = () => {
           onAddCustomer={(c) => setCustomers([...customers, c])}
         />;
 
-      // الحالات الافتراضية للأقسام التي لم نكتب كودها التفصيلي بعد
-      case 'purchases':
+      // الأقسام المتبقية
       case 'production':
       case 'inventory':
       case 'returns':
         return (
           <div style={{padding: '20px', textAlign: 'center', direction: 'rtl'}}>
             <h3>قسم {activePage} قيد التطوير</h3>
-            <button onClick={() => setActivePage('dashboard')}>رجوع</button>
+            <button 
+              style={{padding: '10px 20px', borderRadius: '8px', cursor: 'pointer'}}
+              onClick={() => setActivePage('dashboard')}
+            >
+              رجوع للرئيسية
+            </button>
           </div>
         );
 
@@ -120,21 +133,34 @@ const App = () => {
   };
 
   return (
-    <div className="app-container" style={{ direction: 'rtl', fontFamily: 'Tajawal, sans-serif' }}>
-      {/* هيدر بسيط يظهر في كل الصفحات ما عدا الرئيسية */}
+    <div className="app-container" style={{ direction: 'rtl', fontFamily: 'Tajawal, sans-serif', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+      {/* هيدر التطبيق */}
       {activePage !== 'dashboard' && (
         <nav style={{ 
-          padding: '10px 15px', 
+          padding: '15px', 
           background: '#fff', 
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',
-          boxShadow: '0 2px 5px rgba(0,0,0,0.1)' 
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 100
         }}>
-          <span style={{ fontWeight: 'bold', color: '#333' }}>نظام المعمول</span>
+          <span style={{ fontWeight: '800', color: '#2c3e50', fontSize: '1.2rem' }}>
+            معمول <span style={{color: '#e67e22'}}>راق</span>
+          </span>
           <button 
             onClick={() => setActivePage('dashboard')}
-            style={{ padding: '5px 15px', borderRadius: '8px', border: '1px solid #ddd' }}
+            style={{ 
+              padding: '8px 18px', 
+              borderRadius: '10px', 
+              border: 'none', 
+              backgroundColor: '#f1f5f9',
+              color: '#475569',
+              fontWeight: 'bold',
+              cursor: 'pointer'
+            }}
           >
             الرئيسية
           </button>
@@ -142,7 +168,9 @@ const App = () => {
       )}
 
       {/* عرض الصفحة النشطة */}
-      {renderPage()}
+      <main>
+        {renderPage()}
+      </main>
     </div>
   );
 };
