@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+// استيراد المكونات
 import Dashboard from './components/Dashboard';
-import PurchasesManager from './components/PurchasesManager'; // تم الربط هنا
+import PurchasesManager from './components/PurchasesManager';
 import Sales from './components/Sales';
 import Waste from './components/Waste';
 import Expenses from './components/Expenses';
@@ -9,10 +10,13 @@ import Financials from './components/Financials';
 import Reports from './components/Reports';
 import Customers from './components/Customers';
 
+// استدعاء ملف التنسيق الموحد
+import './App.css'; 
+
 const App = () => {
   const [activePage, setActivePage] = useState('dashboard');
   
-  // --- الحالة المركزية (البيانات المشتركة) ---
+  // --- الحالة المركزية للبيانات ---
   const [inventory, setInventory] = useState([]);
   const [salesData, setSalesData] = useState([]);
   const [expenses, setExpenses] = useState([]);
@@ -20,45 +24,30 @@ const App = () => {
   const [suppliers, setSuppliers] = useState([]);
   const [customers, setCustomers] = useState([]);
 
-  // --- دوال الربط الذكي ونقل البيانات ---
-  
-  // دالة حفظ المشتريات وتحديث المخزن
+  // --- دوال المعالجة ---
   const handleSavePurchase = (newPurchase) => {
     setInventory([...inventory, newPurchase]);
-    // اختيارياً: يمكن إضافة المورد لقائمة الموردين إذا لم يكن موجوداً
     setActivePage('dashboard');
   };
 
-  // عند تسجيل عملية بيع
   const handleSaveSale = (newSale) => {
     setSalesData([...salesData, newSale]);
     setActivePage('dashboard');
   };
 
-  // عند تسجيل مصروفات
-  const handleSaveExpense = (newExpense) => {
-    setExpenses([...expenses, newExpense]);
-  };
-
-  // عند تسجيل هالك
-  const handleSaveWaste = (newWaste) => {
-    setWaste([...waste, newWaste]);
-  };
-
-  // حساب الإحصائيات المالية للقوائم المالية
+  // حساب الإحصائيات المالية
   const financialStats = {
     income: salesData.reduce((sum, item) => sum + (item.total || 0), 0),
     expenses: expenses.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0),
     wasteValue: waste.length * 50 
   };
 
-  // --- محرك عرض الصفحات ---
+  // --- محرك عرض الصفحات النشطة ---
   const renderPage = () => {
     switch(activePage) {
       case 'dashboard': 
         return <Dashboard setActivePage={setActivePage} />;
       
-      // تفعيل قسم المشتريات الجديد بالأزرار الثلاثة
       case 'purchases': 
         return <PurchasesManager 
           onBack={() => setActivePage('dashboard')} 
@@ -75,14 +64,14 @@ const App = () => {
       case 'waste': 
         return <Waste 
           onBack={() => setActivePage('dashboard')} 
-          onSaveWaste={handleSaveWaste} 
+          onSaveWaste={(w) => setWaste([...waste, w])} 
           inventory={inventory} 
         />;
 
       case 'expenses': 
         return <Expenses 
           onBack={() => setActivePage('dashboard')} 
-          onSaveExpense={handleSaveExpense} 
+          onSaveExpense={(e) => setExpenses([...expenses, e])} 
         />;
 
       case 'suppliers': 
@@ -111,55 +100,43 @@ const App = () => {
           onAddCustomer={(c) => setCustomers([...customers, c])}
         />;
 
-      // الأقسام المتبقية
-      case 'production':
-      case 'inventory':
-      case 'returns':
+      default: 
         return (
-          <div style={{padding: '20px', textAlign: 'center', direction: 'rtl'}}>
+          <div className="page-content" style={{textAlign: 'center'}}>
             <h3>قسم {activePage} قيد التطوير</h3>
-            <button 
-              style={{padding: '10px 20px', borderRadius: '8px', cursor: 'pointer'}}
-              onClick={() => setActivePage('dashboard')}
-            >
-              رجوع للرئيسية
-            </button>
+            <button className="card" onClick={() => setActivePage('dashboard')}>رجوع</button>
           </div>
         );
-
-      default: 
-        return <Dashboard setActivePage={setActivePage} />;
     }
   };
 
   return (
-    <div className="app-container" style={{ direction: 'rtl', fontFamily: 'Tajawal, sans-serif', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
-      {/* هيدر التطبيق */}
+    // استخدام className="app-container" ليجلب التنسيق من App.css
+    <div className="app-container">
+      
+      {/* الهيدر العلوي - يظهر فقط في الصفحات الداخلية */}
       {activePage !== 'dashboard' && (
-        <nav style={{ 
-          padding: '15px', 
-          background: '#fff', 
+        <nav className="nav-bar" style={{ 
+          padding: '10px 15px', 
+          background: 'white', 
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 100
+          boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+          marginBottom: '10px'
         }}>
-          <span style={{ fontWeight: '800', color: '#2c3e50', fontSize: '1.2rem' }}>
-            معمول <span style={{color: '#e67e22'}}>راق</span>
+          <span style={{ fontWeight: 'bold', color: '#2c3e50' }}>
+             معمول <span style={{color: '#e67e22'}}>راق</span>
           </span>
           <button 
             onClick={() => setActivePage('dashboard')}
             style={{ 
-              padding: '8px 18px', 
-              borderRadius: '10px', 
-              border: 'none', 
-              backgroundColor: '#f1f5f9',
-              color: '#475569',
-              fontWeight: 'bold',
-              cursor: 'pointer'
+              padding: '5px 15px', 
+              borderRadius: '12px', 
+              border: '1px solid #eee',
+              backgroundColor: '#f8f9fa',
+              cursor: 'pointer',
+              fontSize: '0.9rem'
             }}
           >
             الرئيسية
@@ -167,8 +144,8 @@ const App = () => {
         </nav>
       )}
 
-      {/* عرض الصفحة النشطة */}
-      <main>
+      {/* منطقة عرض المحتوى مع كلاس المسافات الموحد */}
+      <main className="main-content">
         {renderPage()}
       </main>
     </div>
