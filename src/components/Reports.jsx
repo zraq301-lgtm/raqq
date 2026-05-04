@@ -1,130 +1,102 @@
-import React from 'react';
-import * as XLSX from 'xlsx';
-import { FileText, Download, ShoppingBag, Tag, ListOrdered, Warehouse, ArrowRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowRight, LayoutGrid } from 'lucide-react';
 
-// نمرر البيانات المركزية من App.jsx (inventory للمشتريات، salesData للمبيعات)
-export default function Reports({ inventory = [], salesData = [], onBack }) {
-  
-  // 1. وظيفة تصدير تقرير المشتريات (مفصل بالتاريخ والوحدة والسداد)
-  const exportPurchasesExcel = () => {
-    if (inventory.length === 0) return alert("لا توجد بيانات مشتريات");
+// استيراد كافة المكونات من المجلد الفرعي حسب الصورة
+import CashReport from './Repourt/CashReport';
+import CustomersReport from './Repourt/CustomersReport';
+import ExpenseReports from './Repourt/ExpenseReports';
+import PurchaseReportCard from './Repourt/PurchaseReportCard';
+import SalesReportCard from './Repourt/SalesReportCard';
+import StaffReports from './Repourt/StaffReports';
+import SuppliersReport from './Repourt/SuppliersReport';
 
-    const data = inventory.map(op => ({
-      "التاريخ": op.date,
-      "اسم الصنف": op.item,
-      "الوحدة": op.unit,
-      "الكمية": op.quantity,
-      "سعر الوحدة": op.price,
-      "الإجمالي": op.total,
-      "المورد": op.supplier || 'غير محدد',
-      "طريقة السداد": op.paymentMethod || 'كاش'
-    }));
+const Reports = ({ inventory, salesData, expenses, staffData, onBack }) => {
+  // الحالة للتحكم في التقرير المعروض حالياً
+  const [activeSubReport, setActiveSubReport] = useState('main');
 
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "سجل المشتريات");
-    XLSX.writeFile(wb, `Purchases_Report_${new Date().toLocaleDateString()}.xlsx`);
-  };
+  // مصفوفة لتنظيم كروت التقارير بشكل آلي
+  const reportCards = [
+    { id: 'cash', title: 'تقرير النقدي', icon: '💰', color: '#e67e22', component: CashReport },
+    { id: 'purchases', title: 'تقرير المشتريات', icon: '🛒', color: '#9b59b6', component: PurchaseReportCard },
+    { id: 'sales', title: 'تقرير المبيعات', icon: '📈', color: '#2ecc71', component: SalesReportCard },
+    { id: 'expenses', title: 'تقرير المصروفات', icon: '💸', color: '#e74c3c', component: ExpenseReports },
+    { id: 'staff', title: 'تقرير العمال', icon: '👷', color: '#27ae60', component: StaffReports },
+    { id: 'customers', title: 'تقرير العملاء', icon: '👥', color: '#3498db', component: CustomersReport },
+    { id: 'suppliers', title: 'تقرير الموردين', icon: '🚛', color: '#34495e', component: SuppliersReport },
+  ];
 
-  // 2. وظيفة تصدير تقرير المبيعات (البيع والطلبات)
-  const exportSalesExcel = () => {
-    if (salesData.length === 0) return alert("لا توجد بيانات مبيعات");
+  // دالة الرجوع للقائمة الرئيسية للتقارير
+  const goBackToMenu = () => setActiveSubReport('main');
 
-    const data = salesData.map(sale => ({
-      "التاريخ": sale.date,
-      "العميل": sale.customerName || 'عميل نقدي',
-      "الأصناف": sale.items?.map(i => i.name).join(' - '),
-      "الإجمالي": sale.total,
-      "الحالة": sale.isOrder ? "طلب (Order)" : "بيع مباشر"
-    }));
+  // منطق عرض التقارير التفصيلية
+  if (activeSubReport !== 'main') {
+    const selected = reportCards.find(r => r.id === activeSubReport);
+    const ReportComponent = selected.component;
 
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "سجل المبيعات");
-    XLSX.writeFile(wb, `Sales_Report_${new Date().toLocaleDateString()}.xlsx`);
-  };
+    return (
+      <ReportComponent 
+        inventory={inventory} 
+        salesData={salesData} 
+        expenses={expenses} 
+        staffData={staffData} 
+        expensesData={expenses} // لضمان التوافق مع مسمى البروبس في بعض المكونات
+        onBack={goBackToMenu} 
+      />
+    );
+  }
 
-  const styles = {
-    wrapper: { padding: '15px', direction: 'rtl', fontFamily: 'Tajawal, sans-serif' },
-    header: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' },
-    grid: { display: 'grid', gridTemplateColumns: '1fr', gap: '15px' },
-    reportCard: {
-      backgroundColor: '#fff',
-      borderRadius: '20px',
-      padding: '20px',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-      borderRight: '6px solid'
-    },
-    btn: {
-      width: '100%',
-      padding: '12px',
-      marginTop: '15px',
-      borderRadius: '12px',
-      border: 'none',
-      color: '#fff',
-      fontWeight: 'bold',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '8px',
-      cursor: 'pointer'
-    }
-  };
-
+  // واجهة الشبكة الرئيسية (Grid)
   return (
-    <div style={styles.wrapper}>
-      <div style={styles.header}>
-        <button onClick={onBack} style={{border: 'none', background: '#eee', padding: '8px', borderRadius: '50%'}}>
+    <div style={{ padding: '15px', direction: 'rtl', fontFamily: 'Tajawal, sans-serif' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '25px' }}>
+        <button onClick={onBack} style={{ border: 'none', background: '#eee', padding: '8px', borderRadius: '50%', cursor: 'pointer' }}>
           <ArrowRight size={20} />
         </button>
-        <h2 style={{margin: 0}}>مركز التقارير</h2>
+        <h2 style={{ margin: 0, color: '#2c3e50' }}>مركز التقارير المحاسبية</h2>
       </div>
 
-      <div style={styles.grid}>
-        
-        {/* تقرير المشتريات */}
-        <div style={{...styles.reportCard, borderRightColor: '#9b59b6'}}>
-          <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-            <ShoppingBag color="#9b59b6" />
-            <h3 style={{margin: 0, fontSize: '1.1rem'}}>تقرير المشتريات التفصيلي</h3>
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', 
+        gap: '15px' 
+      }}>
+        {reportCards.map((card) => (
+          <div 
+            key={card.id}
+            onClick={() => setActiveSubReport(card.id)}
+            style={{
+              background: 'white',
+              padding: '20px 10px',
+              borderRadius: '20px',
+              textAlign: 'center',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+              cursor: 'pointer',
+              borderBottom: `4px solid ${card.color}`,
+              transition: 'transform 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <div style={{ fontSize: '2.5rem', marginBottom: '10px' }}>{card.icon}</div>
+            <div style={{ fontWeight: 'bold', color: '#34495e', fontSize: '0.9rem' }}>{card.title}</div>
           </div>
-          <p style={{fontSize: '0.85rem', color: '#666', marginTop: '8px'}}>
-            يشمل الصنف، الوحدة، السعر الإجمالي، وطريقة السداد (كاش/آجل).
-          </p>
-          <button onClick={exportPurchasesExcel} style={{...styles.btn, backgroundColor: '#9b59b6'}}>
-            <Download size={18} /> تحميل سجل المشتريات (Excel)
-          </button>
-        </div>
+        ))}
+      </div>
 
-        {/* تقرير المبيعات والطلبات */}
-        <div style={{...styles.reportCard, borderRightColor: '#2ecc71'}}>
-          <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-            <Tag color="#2ecc71" />
-            <h3 style={{margin: 0, fontSize: '1.1rem'}}>تقرير المبيعات والطلبات</h3>
-          </div>
-          <p style={{fontSize: '0.85rem', color: '#666', marginTop: '8px'}}>
-            تقرير مزدوج يشمل المبيعات المباشرة وطلبات العملاء قيد التنفيذ.
-          </p>
-          <button onClick={exportSalesExcel} style={{...styles.btn, backgroundColor: '#2ecc71'}}>
-            <Download size={18} /> تحميل سجل المبيعات (Excel)
-          </button>
-        </div>
-
-        {/* تقرير جرد المخزن */}
-        <div style={{...styles.reportCard, borderRightColor: '#3498db'}}>
-          <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-            <Warehouse color="#3498db" />
-            <h3 style={{margin: 0, fontSize: '1.1rem'}}>تقرير الجرد العام</h3>
-          </div>
-          <p style={{fontSize: '0.85rem', color: '#666', marginTop: '8px'}}>
-            عرض الأرصدة الحالية لكل الأصناف الموجودة في المخزن.
-          </p>
-          <button style={{...styles.btn, backgroundColor: '#3498db'}}>
-            <Download size={18} /> تحميل أرصدة المخزن (Excel)
-          </button>
-        </div>
-
+      <div style={{ 
+        marginTop: '30px', 
+        padding: '15px', 
+        background: '#f8f9fa', 
+        borderRadius: '15px', 
+        textAlign: 'center',
+        border: '1px dashed #ddd'
+      }}>
+        <p style={{ margin: 0, fontSize: '0.85rem', color: '#7f8c8d' }}>
+          جميع التقارير يتم استخراجها بصيغة Excel مطورة.
+        </p>
       </div>
     </div>
   );
-}
+};
+
+export default Reports;
