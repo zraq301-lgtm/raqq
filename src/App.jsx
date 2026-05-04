@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
-// استيراد المكونات (تأكد من مطابقة أسماء الملفات في مجلد components)
+import React, { useState, useEffect } from 'react';
+// استيراد مكتبة الإشعارات المحلية
+import { LocalNotifications } from '@capacitor/local-notifications';
+
+// استيراد المكونات حسب هيكل المجلدات الظاهر في الصورة
 import Dashboard from './components/Dashboard';
 import PurchasesManager from './components/PurchasesManager';
 import Sales from './components/Sales';
@@ -15,11 +18,10 @@ import ProductionManager from './components/ProductionManager';
 import './App.css'; 
 
 const App = () => {
-  // الحالة المسؤولة عن التنقل - تبدأ بلوحة التحكم
   const [activePage, setActivePage] = useState('dashboard');
   
-  // --- الحالة المركزية للبيانات (Logic Core) ---
-  const [inventory, setInventory] = useState([]);      // سجل فواتير المشتريات
+  // --- شبكة البيانات المركزية (Central State Management) ---
+  const [inventory, setInventory] = useState([]);      // سجل الفواتير
   const [stock, setStock] = useState([]);              // أرصدة المخزن الحالية
   const [salesData, setSalesData] = useState([]);      
   const [expenses, setExpenses] = useState([]);        
@@ -28,150 +30,137 @@ const App = () => {
   const [customers, setCustomers] = useState([]);      
   const [productionData, setProductionData] = useState([]);
 
-  // --- وظيفة الربط بين المشتريات والمخزن (دالة السحب أولاً بأول الذكية) ---
+  // 1. طلب إذن الإشعارات عند تشغيل التطبيق لأول مرة
+  useEffect(() => {
+    LocalNotifications.requestPermissions();
+  }, []);
+
+  // 2. مراقب المخزن الذكي: يرسل إشعار محلي إذا قل رصيد مادة خام
+  useEffect(() => {
+    stock.forEach(item => {
+      if (item.balance < 5) { // حد التنبيه الأدنى
+        scheduleAlert("تنبيه مخزن", `كمية ${item.name} منخفضة جداً (${item.balance})`);
+      }
+    });
+  }, [stock]);
+
+  // دالة جدولة الإشعارات
+  const scheduleAlert = async (title, body) => {
+    await LocalNotifications.schedule({
+      notifications: [{
+        title,
+        body,
+        id: Date.now(),
+        schedule: { at: new Date(Date.now() + 1000) }, // يظهر بعد ثانية واحدة
+        sound: 'res://notification_sound'
+      }]
+    });
+  };
+
+  // --- محرك التوزيع: ربط المشتريات بالمخزن ---
   const handleSavePurchase = (newPurchase) => {
-    // 1. تحديث سجل المشتريات العام للتقارير
     setInventory(prev => [...prev, newPurchase]);
 
-    // 2. تحديث أرصدة المخزن الفعلية مع نظام الشحنات (Batches)
     setStock(prevStock => {
-      const itemName = newPurchase.item;
-      const itemQuantity = parseFloat(newPurchase.quantity || 0);
-      const itemPrice = parseFloat(newPurchase.price || 0);
-
-      const existingItemIndex = prevStock.findIndex(s => s.name === itemName);
+      const existingItemIndex = prevStock.findIndex(s => s.name === newPurchase.item);
+      const qty = parseFloat(newPurchase.quantity || 0);
       
-      const newBatch = {
-        id: Date.now(),
-        quantity: itemQuantity,
-        price: itemPrice,
-        date: newPurchase.date || new Date().toISOString()
-      };
-
       if (existingItemIndex > -1) {
-        const updatedStock = [...prevStock];
-        const targetItem = updatedStock[existingItemIndex];
-        
-        updatedStock[existingItemIndex] = {
-          ...targetItem,
-          balance: (targetItem.balance || 0) + itemQuantity,
-          // إضافة الشحنة الجديدة إلى مصفوفة الشحنات لضمان تتبع السعر
-          batches: targetItem.batches ? [...targetItem.batches, newBatch] : [newBatch],
-          price: itemPrice // السعر الأحدث للعرض السريع
-        };
-        return updatedStock;
+        const updated = [...prevStock];
+        updated[existingItemIndex].balance += qty;
+        return updated;
       } else {
         return [...prevStock, { 
           id: Date.now(), 
-          name: itemName, 
-          balance: itemQuantity, 
-          price: itemPrice,
-          unit: newPurchase.unit || 'وحدة',
-          batches: [newBatch] // أول شحنة لهذا الصنف
+          name: newPurchase.item, 
+          balance: qty, 
+          price: parseFloat(newPurchase.price || 0) 
         }];
       }
     });
-
+    
+    scheduleAlert("عملية ناجحة", `تم إضافة ${newPurchase.quantity} إلى المخزن`);
     setActivePage('dashboard');
   };
 
-  // --- محرك عرض الصفحات (الربط مع لوحة التحكم) ---
+  // --- محرك التوزيع: ربط المبيعات والإنتاج بتنقيص المخزن ---
+  const handleGeneralUpdate = (type, data) => {
+    if (type === 'sales') setSalesData([...salesData, data]);
+    if (type === 'waste') setWaste([...waste, data]);
+    
+    // منطق تحديث المخزن التلقائي (نقص الكميات)
+    if (data.itemName) {
+      setStock(prev => prev.map(item => 
+        item.name === data.itemName 
+        ? { ...item, balance: item.balance - (data.quantity || 0) } 
+        : item
+      ));
+    }
+  };
+
   const renderPage = () => {
+    const commonProps = { onBack: () => setActivePage('dashboard') };
+
     switch(activePage) {
-      case 'dashboard': 
-        return <Dashboard setActivePage={setActivePage} />;
+      case 'dashboard': return <Dashboard setActivePage={setActivePage} />;
       
       case 'purchases': 
-        return <PurchasesManager 
-          onBack={() => setActivePage('dashboard')} 
-          onPurchaseComplete={handleSavePurchase} 
-        />;
+        return <PurchasesManager {...commonProps} onPurchaseComplete={handleSavePurchase} />;
 
       case 'inventory': 
-        return <Inventory 
-          categories={stock} 
-          onDelete={(id) => setStock(stock.filter(s => s.id !== id))}
-          onBack={() => setActivePage('dashboard')}
-        />;
+        return <Inventory {...commonProps} categories={stock} onDelete={(id) => setStock(stock.filter(s => s.id !== id))} />;
 
       case 'sales': 
-        return <Sales 
-          onBack={() => setActivePage('dashboard')} 
-          onSaveSale={(s) => setSalesData([...salesData, s])} 
-          customers={customers} 
-        />;
+        return <Sales {...commonProps} onSaveSale={(s) => handleGeneralUpdate('sales', s)} customers={customers} />;
 
       case 'production':
-        return <ProductionManager 
-          onBack={() => setActivePage('dashboard')}
-          stock={stock}
-          setStock={setStock}
-          onSaveProduction={(p) => setProductionData([...productionData, p])}
-          onSaveWaste={(w) => setWaste([...waste, w])}
-        />;
+        return <ProductionManager {...commonProps} stock={stock} onSaveProduction={(p) => setProductionData([...productionData, p])} />;
 
       case 'waste': 
-        return <Waste 
-          onBack={() => setActivePage('dashboard')} 
-          inventory={stock}
-          onSaveWaste={(w) => setWaste([...waste, w])} 
-        />;
+        return <Waste {...commonProps} inventory={stock} onSaveWaste={(w) => handleGeneralUpdate('waste', w)} />;
 
       case 'expenses': 
-        return <Expenses 
-          onBack={() => setActivePage('dashboard')} 
-          onSaveExpense={(e) => setExpenses([...expenses, e])} 
-        />;
+        return <Expenses {...commonProps} onSaveExpense={(e) => setExpenses([...expenses, e])} />;
 
       case 'suppliers': 
-        return <Suppliers 
-          onBack={() => setActivePage('dashboard')} 
-          suppliers={suppliers}
-          onAddSupplier={(s) => setSuppliers([...suppliers, s])}
-        />;
+        return <Suppliers {...commonProps} suppliers={suppliers} onAddSupplier={(s) => setSuppliers([...suppliers, s])} />;
 
       case 'customers': 
-        return <Customers 
-          onBack={() => setActivePage('dashboard')} 
-          customers={customers}
-          onAddCustomer={(c) => setCustomers([...customers, c])}
-        />;
+        return <Customers {...commonProps} customers={customers} onAddCustomer={(c) => setCustomers([...customers, c])} />;
 
       case 'financials': 
-        return <Financials 
-          onBack={() => setActivePage('dashboard')} 
-          salesData={salesData}
-          expenses={expenses}
-        />;
+        return <Financials {...commonProps} salesData={salesData} expenses={expenses} />;
 
       case 'reports': 
-        return <Reports 
-          onBack={() => setActivePage('dashboard')} 
-          inventory={inventory}    
-          stock={stock} 
-          salesData={salesData}    
-          expenses={expenses}      
-        />;
+        return <Reports {...commonProps} inventory={inventory} stock={stock} salesData={salesData} expenses={expenses} />;
 
-      default: 
-        return <Dashboard setActivePage={setActivePage} />;
+      default: return <Dashboard setActivePage={setActivePage} />;
     }
   };
 
   return (
-    <div className="app-container">
+    <div className="app-container" style={{ direction: 'rtl' }}>
       {activePage !== 'dashboard' && (
-        <nav className="nav-bar" style={{ direction: 'rtl' }}>
-          <span className="logo">معمول <span className="highlight">راق</span></span>
-          <button onClick={() => setActivePage('dashboard')} className="home-btn">
-            الرئيسية
-          </button>
+        <nav className="nav-bar">
+          <div className="nav-content">
+            <span className="logo">معمول <span className="highlight">راق</span></span>
+            <button onClick={() => setActivePage('dashboard')} className="home-icon-btn">
+              🏠 الرئيسية
+            </button>
+          </div>
         </nav>
       )}
 
       <main className="main-content">
         {renderPage()}
       </main>
+
+      {/* شريط سفلي سريع للتنقل (اختياري لتحسين UI الجوال) */}
+      <footer className="mobile-footer">
+        <button onClick={() => setActivePage('sales')}>💰 بيع</button>
+        <button onClick={() => setActivePage('inventory')}>📦 مخزن</button>
+        <button onClick={() => setActivePage('reports')}>📊 تقارير</button>
+      </footer>
     </div>
   );
 };
