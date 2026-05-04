@@ -1,19 +1,23 @@
 import React, { useState } from 'react';
-import { Factory, Save, ArrowRight, AlertTriangle, Box, calculator } from 'lucide-react';
+import { Factory, Save, ArrowRight, AlertTriangle, Box, TrendingUp } from 'lucide-react';
 
 const ProductionManager = ({ stock, onSaveProduction, onSaveWaste, onBack, setStock }) => {
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
-    shift: 'الأولى',
+    shift: 'الأولى', // الخيارات: الأولى، الثانية، السهرة، ساعات إضافية
     ingredients: {
-      دقيق: 0, سكر: 0, عجوة: 0, سمن: 0, zبدة: 0, لبن: 0, كرتون: 0, تغليف: 0
+      دقيق: 0, سكر: 0, عجوة: 0, سمنة: 0, زبدة: 0, 
+      سولار: 0, كهرباء: 0, لبن: 0, كارتون: 0, تغليف: 0
     },
-    productionQty: 0, // الكمية المنتجة
-    wasteQty: 0       // الكمية التالفة
+    productionQty: 0, 
+    wasteQty: 0,
+    expectedCostPerUnit: 0 // التكلفة التقديرية لحساب الانحراف
   });
 
+  const shifts = ['الأولى', 'الثانية', 'السهرة', 'ساعات إضافية'];
+
   const handleChange = (e, category, field) => {
-    const value = parseFloat(e.target.value) || 0;
+    const value = e.target.type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value;
     if (category === 'ingredients') {
       setFormData({ ...formData, ingredients: { ...formData.ingredients, [field]: value } });
     } else {
@@ -22,55 +26,54 @@ const ProductionManager = ({ stock, onSaveProduction, onSaveWaste, onBack, setSt
   };
 
   const handleProcessProduction = () => {
-    let totalProductionCost = 0;
-    // عمل نسخة عميقة من المخزن لتعديل الشحنات بدقة
+    let totalActualCost = 0;
     const updatedStock = JSON.parse(JSON.stringify(stock));
 
-    // 1. التحقق من التوفر الفعلي وحساب التكلفة بنظام FIFO
+    // 1. منطق سحب الخامات وحساب التكلفة الفعلية (FIFO)
     for (const [ingName, requiredQty] of Object.entries(formData.ingredients)) {
       if (requiredQty <= 0) continue;
 
       const stockItem = updatedStock.find(s => s.name === ingName);
-      // حساب إجمالي الكمية المتوفرة في جميع الشحنات لهذا الصنف
       const totalAvailable = stockItem?.batches?.reduce((sum, b) => sum + b.quantity, 0) || 0;
 
       if (totalAvailable < requiredQty) {
-        alert(`نقص في كمية ${ingName}! مطلوب ${requiredQty} والمتوفر ${totalAvailable}`);
+        alert(`نقص حاد في مادة: ${ingName}! المطلوب: ${requiredQty} والمتوفر: ${totalAvailable}`);
         return;
       }
 
-      // --- منطق السحب الذكي ---
       let remainingToWithdraw = requiredQty;
       while (remainingToWithdraw > 0) {
-        const currentBatch = stockItem.batches[0]; // سحب أقدم شحنة
-
+        const currentBatch = stockItem.batches[0];
         if (currentBatch.quantity <= remainingToWithdraw) {
-          // الشحنة تنتهي بالكامل
-          totalProductionCost += (currentBatch.quantity * currentBatch.price);
+          totalActualCost += (currentBatch.quantity * currentBatch.price);
           remainingToWithdraw -= currentBatch.quantity;
-          stockItem.batches.shift(); // حذف الشحنة المنتهية
+          stockItem.batches.shift();
         } else {
-          // السحب من جزء من الشحنة
-          totalProductionCost += (remainingToWithdraw * currentBatch.price);
+          totalActualCost += (remainingToWithdraw * currentBatch.price);
           currentBatch.quantity -= remainingToWithdraw;
           remainingToWithdraw = 0;
         }
       }
-      // تحديث الإجمالي العام للصنف (Balance) ليتوافق مع مجموع الشحنات المتبقية
       stockItem.balance = stockItem.batches.reduce((sum, b) => sum + b.quantity, 0);
     }
 
-    // 2. حساب تكلفة الوحدة المنتجة بناءً على الاستهلاك الفعلي
-    const unitCost = formData.productionQty > 0 ? (totalProductionCost / formData.productionQty) : 0;
+    // 2. حساب مخرجات الإنتاج والانحراف
+    const actualUnitCost = formData.productionQty > 0 ? (totalActualCost / formData.productionQty) : 0;
+    
+    // حساب معدل الانحراف (Deviation Rate)
+    // الانحراف = ((التكلفة الفعلية - التكلفة التقديرية) / التكلفة التقديرية) * 100
+    let deviationRate = 0;
+    if (formData.expectedCostPerUnit > 0) {
+      deviationRate = ((actualUnitCost - formData.expectedCostPerUnit) / formData.expectedCostPerUnit) * 100;
+    }
 
-    // 3. إضافة المنتج النهائي للمخزن كشحنة جديدة بتكلفتها الحقيقية
+    // 3. تحديث المنتج النهائي في المخزن
     const finalProductName = "معمول جاهز";
     let productItem = updatedStock.find(s => s.name === finalProductName);
-    
     const newProductBatch = {
       purchaseDate: formData.date,
       quantity: formData.productionQty,
-      price: unitCost // التكلفة المحسوبة للوحدة
+      price: actualUnitCost
     };
 
     if (productItem) {
@@ -87,112 +90,109 @@ const ProductionManager = ({ stock, onSaveProduction, onSaveWaste, onBack, setSt
       });
     }
 
-    // 4. ترحيل الهالك المسجل بسعر التكلفة الحقيقي
+    // 4. تسجيل الهالك
     if (formData.wasteQty > 0) {
       onSaveWaste({
         id: Date.now(),
         date: formData.date,
-        item: "هالك إنتاج - معمول",
+        item: `هالك إنتاج - وردية ${formData.shift}`,
         quantity: formData.wasteQty,
-        costAtLoss: (unitCost * formData.wasteQty).toFixed(2), // قيمة الخسارة الفعلية
-        reason: "تالف تصنيع"
+        costAtLoss: (actualUnitCost * formData.wasteQty).toFixed(2),
+        reason: "هالك تشغيل"
       });
     }
 
-    // 5. حفظ وتحديث
+    // 5. الحفظ النهائي
     setStock(updatedStock);
     onSaveProduction({
       ...formData,
-      totalCost: totalProductionCost.toFixed(2),
-      unitCost: unitCost.toFixed(2)
+      totalActualCost: totalActualCost.toFixed(2),
+      actualUnitCost: actualUnitCost.toFixed(2),
+      deviationRate: deviationRate.toFixed(2)
     });
 
-    alert(`تم الترحيل! التكلفة الإجمالية المسحوبة: ${totalProductionCost.toFixed(2)} ج.م`);
+    alert(`تم بنجاح! التكلفة الفعلية: ${totalActualCost.toFixed(2)} | الانحراف: ${deviationRate.toFixed(2)}%`);
     onBack();
   };
 
   return (
-    <div style={{ padding: '20px', direction: 'rtl', fontFamily: 'Tajawal' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '25px', borderBottom: '2px solid #f1f1f1', pb: '15px' }}>
-        <div style={{ background: '#e67e22', padding: '10px', borderRadius: '12px' }}>
-          <Factory size={28} color="white" />
+    <div style={{ padding: '20px', direction: 'rtl', fontFamily: 'Tajawal', backgroundColor: '#f4f7f6', minHeight: '100vh' }}>
+      {/* الرأس */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', background: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Factory size={35} color="#d35400" />
+          <h2 style={{ margin: 0, color: '#2c3e50' }}>سجل تشغيل الإنتاج والورديات</h2>
         </div>
-        <div>
-          <h2 style={{ color: '#2c3e50', margin: 0 }}>نظام الإنتاج الذكي (FIFO)</h2>
-          <small style={{ color: '#7f8c8d' }}>سحب المكونات وحساب التكاليف بالأسعار الحقيقية</small>
+        <div style={{ display: 'flex', gap: '10px' }}>
+            <input type="date" value={formData.date} onChange={(e) => handleChange(e, 'info', 'date')} style={{ padding: '8px', borderRadius: '8px', border: '1px solid #ddd' }} />
+            <select value={formData.shift} onChange={(e) => handleChange(e, 'info', 'shift')} style={{ padding: '8px', borderRadius: '8px', border: '1px solid #ddd' }}>
+              {shifts.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '25px' }}>
-        {/* قسم المكونات */}
-        <div style={{ background: '#fff', padding: '25px', borderRadius: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #eee' }}>
-          <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Box size={20} color="#3498db" /> المكونات المستهلكة
-          </h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '15px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 0.6fr', gap: '20px' }}>
+        {/* جدول المكونات (كما في الصورة) */}
+        <div style={{ background: '#fff', padding: '20px', borderRadius: '20px', boxShadow: '0 4px 10px rgba(0,0,0,0.05)' }}>
+          <h3 style={{ borderBottom: '2px solid #f1c40f', paddingBottom: '10px', color: '#f39c12' }}>خامات التشغيل (المسحوبة)</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '15px', marginTop: '20px' }}>
             {Object.keys(formData.ingredients).map(ing => (
-              <div key={ing} style={{ background: '#f8f9fa', padding: '10px', borderRadius: '12px' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#34495e', display: 'block', marginBottom: '5px' }}>{ing}</label>
+              <div key={ing} style={{ background: '#fcfcfc', padding: '10px', borderRadius: '10px', border: '1px solid #eee' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '5px' }}>{ing}</label>
                 <input 
                   type="number" 
-                  placeholder="0.00"
+                  placeholder="0"
                   onChange={(e) => handleChange(e, 'ingredients', ing)}
-                  style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #dcdde1', outline: 'none' }}
+                  style={{ width: '100%', border: 'none', background: 'transparent', borderBottom: '1px solid #ccc', textAlign: 'center' }} 
                 />
               </div>
             ))}
           </div>
         </div>
 
-        {/* النتائج والترحيل */}
+        {/* النتائج والمحاسبة */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ background: '#fff', padding: '25px', borderRadius: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #eee' }}>
-            <h3 style={{ marginBottom: '20px', color: '#27ae60' }}>مخرجات العملية</h3>
+          <div style={{ background: '#2c3e50', color: '#fff', padding: '20px', borderRadius: '20px', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}>
+            <h3 style={{ color: '#f1c40f', marginBottom: '20px' }}>مخرجات الإنتاج والتكلفة</h3>
             
             <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>كمية الإنتاج التام:</label>
-              <input 
-                type="number" 
-                placeholder="كم كرتونة؟"
-                onChange={(e) => handleChange(e, 'output', 'productionQty')}
-                style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '2px solid #2ecc71', fontSize: '1.1rem' }}
-              />
+              <label style={{ fontSize: '0.9rem' }}>حجم الإنتاج (كرتونة):</label>
+              <input type="number" onChange={(e) => handleChange(e, 'info', 'productionQty')} style={{ width: '100%', padding: '10px', borderRadius: '8px', marginTop: '5px', fontSize: '1.2rem', fontWeight: 'bold' }} />
             </div>
 
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#e74c3c' }}>كمية الهالك (التالف):</label>
-              <input 
-                type="number" 
-                placeholder="0.00"
-                onChange={(e) => handleChange(e, 'output', 'wasteQty')}
-                style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '2px solid #e74c3c', fontSize: '1.1rem' }}
-              />
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ fontSize: '0.9rem' }}>كمية الهالك:</label>
+              <input type="number" onChange={(e) => handleChange(e, 'info', 'wasteQty')} style={{ width: '100%', padding: '10px', borderRadius: '8px', marginTop: '5px', color: '#e74c3c' }} />
             </div>
 
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button 
-                onClick={handleProcessProduction}
-                style={{ flex: 1, padding: '15px', background: '#2ecc71', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', transition: '0.3s' }}
-              >
-                <Save size={22} /> تنفيذ وترحيل ذكي
-              </button>
-              <button 
-                onClick={onBack}
-                style={{ padding: '15px', background: '#ecf0f1', color: '#7f8c8d', border: 'none', borderRadius: '12px', cursor: 'pointer' }}
-              >
-                <ArrowRight size={22} />
-              </button>
+            <div style={{ marginBottom: '20px', borderTop: '1px solid #444', paddingTop: '15px' }}>
+              <label style={{ fontSize: '0.8rem', color: '#bdc3c7' }}>التكلفة التقديرية للوحدة (لمقارنة الانحراف):</label>
+              <input type="number" onChange={(e) => handleChange(e, 'info', 'expectedCostPerUnit')} style={{ width: '100%', padding: '8px', borderRadius: '8px', background: '#34495e', border: 'none', color: '#fff' }} />
             </div>
+
+            <button 
+              onClick={handleProcessProduction}
+              style={{ width: '100%', padding: '15px', background: '#27ae60', border: 'none', color: '#fff', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
+            >
+              <Save /> تنفيذ وترحيل السجل
+            </button>
           </div>
 
-          <div style={{ background: '#fff3cd', padding: '15px', borderRadius: '15px', border: '1px solid #ffeeba', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-            <AlertTriangle color="#856404" size={20} />
-            <p style={{ margin: 0, fontSize: '0.85rem', color: '#856404' }}>
-              <strong>ملاحظة الذكاء الاصطناعي:</strong> النظام يسحب التكلفة من أقدم شحنة شراء مسجلة أولاً. في حال انتهائها، ينتقل للشحنة الأحدث بالسعر الجديد تلقائياً.
+          <div style={{ background: '#fff', padding: '15px', borderRadius: '15px', borderLeft: '5px solid #f39c12' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#f39c12' }}>
+              <TrendingUp size={20} />
+              <strong style={{ fontSize: '0.9rem' }}>معادلة معدل الانحراف:</strong>
+            </div>
+            <p style={{ fontSize: '0.75rem', color: '#7f8c8d', marginTop: '5px' }}>
+              يقيس النظام الفارق بين ما استهلكته فعلياً وما كان مفترض استهلاكه. النسبة الموجبة تعني زيادة في الهالك أو سوء استخدام للخامات.
             </p>
           </div>
         </div>
       </div>
+      
+      <button onClick={onBack} style={{ marginTop: '20px', padding: '10px 20px', background: '#95a5a6', border: 'none', color: '#fff', borderRadius: '8px', cursor: 'pointer' }}>
+        عودة للرئيسية
+      </button>
     </div>
   );
 };
