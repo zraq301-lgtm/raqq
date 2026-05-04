@@ -1,7 +1,7 @@
 {
-  "appId": "com.raqqa.app",
+  "appId": "com.mamoul.app",
   "appName": "معمول",
-  "webDir": "dist_web",
+  "webDir": "dist",
   "server": {
     "androidScheme": "https",
     "cleartext": true
