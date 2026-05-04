@@ -1,6 +1,6 @@
 {
   "appId": "com.raqqa.app",
-  "appName": "اسم التطبيق الجديد",
+  "appName": "معمول",
   "webDir": "dist_web",
   "server": {
     "androidScheme": "https",
