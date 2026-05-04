@@ -1,149 +1,307 @@
-import React, { useState, useEffect } from 'react';
-// استيراد مكتبة الإشعارات المحلية
-import { LocalNotifications } from '@capacitor/local-notifications';
+import { Routes, Route, useLocation, Link, Navigate } from 'react-router-dom';
+import { useEffect, useState, useCallback } from 'react'; 
+import { App as CapApp } from '@capacitor/app'; 
+import { CapacitorHttp } from '@capacitor/core'; 
+import { LocalNotifications } from '@capacitor/local-notifications'; 
 
-// استيراد المكونات حسب هيكل المجلدات الصحيح
-import Dashboard from './components/Dashboard';
-import PurchasesManager from './components/PurchasesManager';
-import Sales from './components/Sales';
-import Waste from './components/Waste';
-import Expenses from './components/Expenses';
-import Suppliers from './components/Suppliers';
-import Financials from './components/Financials';
-import Reports from './components/Reports'; 
-import Customers from './components/Customers';
-import Inventory from './components/Inventory';
-import ProductionManager from './components/ProductionManager';
+// استيراد مكون الإعلان الجديد
+import AdBanner from './components/AdBanner';
 
-import './App.css'; 
+// استيراد خاصية فيربيس
+import { applyRemoteSettings } from "./firebase-config";
 
-const App = () => {
-  const [activePage, setActivePage] = useState('dashboard');
-  
-  // --- شبكة البيانات المركزية ---
-  const [inventory, setInventory] = useState([]);      
-  const [stock, setStock] = useState([]);              
-  const [salesData, setSalesData] = useState([]);      
-  const [expenses, setExpenses] = useState([]);        
-  const [waste, setWaste] = useState([]);              
-  const [suppliers, setSuppliers] = useState([]);      
-  const [customers, setCustomers] = useState([]);      
-  const [productionData, setProductionData] = useState([]);
+// استيراد الأصول (Assets)
+import healthImg from './assets/health.jpg';
+import feelingsImg from './assets/feelings.jpg';
+import intimacyImg from './assets/intimacy.jpg';
+import swingImg from './assets/swing.jpg';
+import insightImg from './assets/insight.jpg';
+import videosImg from './assets/videos.jpg';
+import virtualImg from './assets/virtual.jpg';
 
-  // 1. طلب إذن الإشعارات عند التشغيل
+// استيراد الصفحات
+import Health from './pages/Health';
+import Feelings from './pages/Feelings';
+import Intimacy from './pages/Intimacy';
+import Swing from './pages/Swing';
+import Insight from './pages/Insight';
+import Videos from './pages/Videos';
+import VirtualWorld from './pages/VirtualWorld';
+
+import './App.css';
+
+/**
+ * وظيفة لضمان صعود التمرير للأعلى عند تغيير الصفحة
+ */
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => { 
+    window.scrollTo(0, 0); 
+  }, [pathname]);
+  return null;
+}
+
+/**
+ * مكون النصيحة الذكية (TipOverlay)
+ */
+function TipOverlay() {
+  const [tip, setTip] = useState(null);
+  const [isVisible, setIsVisible] = useState(false);
+  const { pathname } = useLocation();
+
   useEffect(() => {
-    const requestPermission = async () => {
-      try {
-        await LocalNotifications.requestPermissions();
-      } catch (err) {
-        console.log("Notification permission error", err);
+    const checkAndShowTip = async () => {
+      const today = new Date().toLocaleDateString();
+      const tipData = JSON.parse(localStorage.getItem('raqqa_tip_tracker') || '{"date":"","count":0}');
+      
+      if (tipData.date !== today) {
+        tipData.date = today;
+        tipData.count = 0;
+      }
+
+      if (tipData.count < 2) {
+        try {
+          const response = await fetch('https://raqqa-ruddy.vercel.app/api/tips');
+          const data = await response.json();
+          if (data.content) {
+            setTip(data.content);
+            setIsVisible(true);
+            tipData.count += 1;
+            localStorage.setItem('raqqa_tip_tracker', JSON.stringify(tipData));
+            setTimeout(() => setIsVisible(false), 20000);
+          }
+        } catch (err) {
+          console.error("Tip Fetch Error:", err);
+        }
       }
     };
-    requestPermission();
-  }, []);
+    checkAndShowTip();
+  }, [pathname]);
 
-  // 2. مراقب المخزن الذكي
-  useEffect(() => {
-    if (stock.length > 0) {
-      stock.forEach(item => {
-        if (item.balance < 5) {
-          scheduleAlert(
-            "⚠️ تنبيه نقص مخزن", 
-            `المنتج (${item.name}) وصل لرصيد منخفض: ${item.balance}`
-          );
-        }
-      });
+  if (!isVisible || !tip) return null;
+
+  const renderContent = () => {
+    const content = tip.trim();
+    if (content.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
+      return <img src={content} alt="رقة نصيحة" className="tip-media-content" />;
     }
-  }, [stock]);
-
-  const scheduleAlert = async (title, body) => {
-    try {
-      await LocalNotifications.schedule({
-        notifications: [{
-          title,
-          body,
-          id: Math.floor(Math.random() * 10000),
-          schedule: { at: new Date(Date.now() + 500) },
-          sound: 'res://notification_sound'
-        }]
-      });
-    } catch (e) {
-      console.error("Local Notification failed", e);
+    if (content.includes('youtube.com') || content.includes('youtu.be')) {
+      let videoId = content.split('v=')[1] || content.split('/').pop();
+      if (videoId.includes('&')) videoId = videoId.split('&')[0];
+      return (
+        <div className="tip-video-wrapper">
+          <iframe 
+            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1`}
+            title="فيديو رقة"
+            frameBorder="0"
+            allow="autoplay; encrypted-media"
+            allowFullScreen
+          ></iframe>
+        </div>
+      );
     }
-  };
-
-  // --- معالجة المشتريات ---
-  const handleSavePurchase = (newPurchase) => {
-    setInventory(prev => [...prev, newPurchase]);
-    setStock(prevStock => {
-      const existingItemIndex = prevStock.findIndex(s => s.name === newPurchase.item);
-      const qty = parseFloat(newPurchase.quantity || 0);
-      if (existingItemIndex > -1) {
-        const updated = [...prevStock];
-        updated[existingItemIndex].balance += qty;
-        return updated;
-      } else {
-        return [...prevStock, { 
-          id: Date.now(), 
-          name: newPurchase.item, 
-          balance: qty, 
-          price: parseFloat(newPurchase.price || 0) 
-        }];
-      }
-    });
-    scheduleAlert("📦 تم الإضافة", `تم إضافة ${newPurchase.quantity} للمخزن`);
-    setActivePage('dashboard');
-  };
-
-  // --- معالجة المبيعات والهالك ---
-  const handleGeneralUpdate = (type, data) => {
-    if (type === 'sales') setSalesData(prev => [...prev, data]);
-    if (type === 'waste') setWaste(prev => [...prev, data]);
-    if (data.itemName) {
-      setStock(prev => prev.map(item => 
-        item.name === data.itemName 
-        ? { ...item, balance: item.balance - (data.quantity || 0) } 
-        : item
-      ));
-    }
-  };
-
-  const renderPage = () => {
-    const commonProps = { onBack: () => setActivePage('dashboard') };
-    switch(activePage) {
-      case 'dashboard': return <Dashboard setActivePage={setActivePage} />;
-      case 'purchases': return <PurchasesManager {...commonProps} onPurchaseComplete={handleSavePurchase} />;
-      case 'inventory': return <Inventory {...commonProps} categories={stock} onDelete={(id) => setStock(stock.filter(s => s.id !== id))} />;
-      case 'sales': return <Sales {...commonProps} onSaveSale={(s) => handleGeneralUpdate('sales', s)} customers={customers} />;
-      case 'production': return <ProductionManager {...commonProps} stock={stock} onSaveProduction={(p) => setProductionData([...productionData, p])} />;
-      case 'waste': return <Waste {...commonProps} inventory={stock} onSaveWaste={(w) => handleGeneralUpdate('waste', w)} />;
-      case 'expenses': return <Expenses {...commonProps} onSaveExpense={(e) => setExpenses([...expenses, e])} />;
-      case 'suppliers': return <Suppliers {...commonProps} suppliers={suppliers} onAddSupplier={(s) => setSuppliers([...suppliers, s])} />;
-      case 'customers': return <Customers {...commonProps} customers={customers} onAddCustomer={(c) => setCustomers([...customers, c])} />;
-      case 'financials': return <Financials {...commonProps} salesData={salesData} expenses={expenses} />;
-      case 'reports': return <Reports {...commonProps} inventory={inventory} stock={stock} salesData={salesData} expenses={expenses} />;
-      default: return <Dashboard setActivePage={setActivePage} />;
-    }
+    return <p className="tip-text-content">{tip}</p>;
   };
 
   return (
-    <div className="app-container" style={{ direction: 'rtl' }}>
-      {activePage !== 'dashboard' && (
-        <nav className="nav-bar">
-          <div className="nav-content">
-            <span className="logo">معمول <span className="highlight">راق</span></span>
-            <button onClick={() => setActivePage('dashboard')} className="home-icon-btn">🏠 الرئيسية</button>
-          </div>
-        </nav>
-      )}
-      <main className="main-content">{renderPage()}</main>
-      <footer className="mobile-footer">
-        <button onClick={() => setActivePage('sales')}>💰 بيع</button>
-        <button onClick={() => setActivePage('inventory')}>📦 مخزن</button>
-        <button onClick={() => setActivePage('reports')}>📊 تقارير</button>
-      </footer>
+    <div className="tip-card-overlay" onClick={() => setIsVisible(false)}>
+      <div className="tip-card-content" onClick={(e) => e.stopPropagation()}>
+        <div className="tip-header">
+          <span className="tip-icon">💡 إشراقة رقة</span>
+          <button className="tip-close-btn" onClick={() => setIsVisible(false)}>×</button>
+        </div>
+        <div className="tip-body">{renderContent()}</div>
+        <div className="tip-timer-bar"></div>
+      </div>
     </div>
   );
-};
+}
+
+function App() {
+  const location = useLocation();
+
+  // --- إنشاء قناة الإشعارات للصوت والأولوية القصوى ---
+  useEffect(() => {
+    const initNotifications = async () => {
+      applyRemoteSettings();
+      try {
+        await LocalNotifications.createChannel({
+          id: 'raqqa_main_channel',
+          name: 'إشعارات رقة الذكية',
+          description: 'تنبيهات الصحة، المشاعر، والمواعيد الخاصة بكِ',
+          importance: 5, // أقصى أهمية للصوت والظهور المنبثق
+          visibility: 1,
+          sound: 'default', // تفعيل الصوت الافتراضي
+          vibration: true,
+        });
+        console.log("✅ تم إنشاء قناة إشعارات رقة بنجاح");
+      } catch (e) {
+        console.error("Channel creation error", e);
+      }
+    };
+    initNotifications();
+  }, []);
+
+  // --- نظام المزامنة والجدولة المحلية المتطور ---
+  const syncNotifications = useCallback(async () => {
+    try {
+      const localData = localStorage.getItem('raqqa_local_reminders');
+      if (!localData) return;
+
+      const reminders = JSON.parse(localData);
+
+      const perms = await LocalNotifications.checkPermissions();
+      if (perms.display !== 'granted') {
+        await LocalNotifications.requestPermissions();
+      }
+
+      const pending = await LocalNotifications.getPending();
+      if (pending.notifications.length > 0) {
+        await LocalNotifications.cancel({ notifications: pending.notifications });
+      }
+
+      const notificationsToSchedule = reminders
+        .filter(rem => new Date(rem.scheduled_for) > new Date())
+        .map(rem => {
+          // --- منطق تحديد الصورة المتخصصة لكل قسم ---
+          let sectionIcon = 'ic_stat_name'; // الافتراضي (أيقونة التطبيق)
+          const title = rem.title || "";
+          
+          if (title.includes('صحة') || title.includes('دورة') || title.includes('تحليل')) {
+            sectionIcon = 'health_notify'; // ابحث عن health_notify.png في drawable
+          } else if (title.includes('مشاعر') || title.includes('قلق') || title.includes('مزاج')) {
+            sectionIcon = 'feelings_notify';
+          } else if (title.includes('حميمية')) {
+            sectionIcon = 'intimacy_notify';
+          } else if (title.includes('أرجوحة') || title.includes('منتدى')) {
+            sectionIcon = 'swing_notify';
+          } else if (title.includes('إشراقة') || title.includes('نصيحة')) {
+            sectionIcon = 'insight_notify';
+          }
+
+          return {
+            id: Math.floor(Math.random() * 1000000),
+            title: rem.title,
+            body: rem.body,
+            schedule: { at: new Date(rem.scheduled_for) },
+            channelId: 'raqqa_main_channel', // ربط القناة لتفعيل الصوت
+            sound: 'default',
+            smallIcon: 'ic_stat_name', // الأيقونة الصغيرة العلوية (يجب أن تكون بيضاء شفافة)
+            largeIcon: sectionIcon,    // أيقونة القسم الجانبية
+            attachments: [{ id: 'res', url: sectionIcon }], // عرض الصورة بشكل كبير أسفل الإشعار
+            extra: { report: rem.body }
+          };
+        });
+
+      if (notificationsToSchedule.length > 0) {
+        await LocalNotifications.schedule({ notifications: notificationsToSchedule });
+        console.log("✅ تمت جدولة التقارير المتخصصة بالصور والصوت");
+      }
+    } catch (err) {
+      console.error("Local Notification Sync Error:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    syncNotifications();
+
+    const handleTrigger = () => {
+      console.log("🔔 استقبال طلب مزامنة فوري للتقرير...");
+      syncNotifications();
+    };
+    window.addEventListener('trigger_sync_notifications', handleTrigger);
+
+    const setupBackButton = async () => {
+      return await CapApp.addListener('backButton', ({ canGoBack }) => {
+        if (!canGoBack) { 
+          CapApp.exitApp(); 
+        } else { 
+          window.history.back(); 
+        }
+      });
+    };
+    const listener = setupBackButton();
+    
+    return () => { 
+      window.removeEventListener('trigger_sync_notifications', handleTrigger);
+      listener.then(l => l.remove()); 
+    };
+  }, [syncNotifications, location.pathname]);
+
+  return (
+    <div className="app-container">
+      <ScrollToTop />
+      <TipOverlay />
+      
+      <header className="main-app-header" style={{ backgroundColor: '#fff', padding: '10px', textAlign: 'center', borderBottom: '1px solid #eee' }}>
+        <a 
+          href="https://www.facebook.com/profile.php?id=61571056531349" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          style={{ textDecoration: 'none', color: '#1877F2', fontWeight: 'bold', fontSize: '16px' }}
+        >
+          تواصل معنا
+        </a>
+      </header>
+
+      <div className="global-ad-container" style={{ display: 'flex', justifyContent: 'center', padding: '10px 0', backgroundColor: '#fff', borderBottom: '1px solid #f0f0f0' }}>
+          <AdBanner />
+      </div>
+      
+      <header className="top-sticky-menu">
+        <div className="top-cards-container">
+          <Link to="/videos" className="top-card">
+            <img src={videosImg} alt="المكتبة" className="custom-img-icon" />
+            <div className="card-text"><span className="card-label">المكتبة</span></div>
+          </Link>
+          <Link to="/virtual-world" className="top-card">
+            <img src={virtualImg} alt="عالم رقة" className="custom-img-icon" />
+            <div className="card-text"><span className="card-label">عالم رقة</span></div>
+          </Link>
+        </div>
+      </header>
+      
+      <main className="main-content">
+        <Routes>
+          <Route path="/" element={<Navigate to="/health" />} />
+          <Route path="/health" element={<Health />} />
+          <Route path="/feelings" element={<Feelings />} />
+          <Route path="/intimacy" element={<Intimacy />} />
+          <Route path="/swing-forum" element={<Swing />} />
+          <Route path="/insight" element={<Insight />} />
+          <Route path="/videos" element={<Videos />} />
+          <Route path="/virtual-world" element={<VirtualWorld />} />
+        </Routes>
+      </main>
+
+      <nav className="bottom-sticky-menu">
+        <div className="nav-grid">
+          <Link to="/feelings" className="nav-item">
+            <img src={feelingsImg} alt="المشاعر" className="custom-img-icon-nav" />
+            <span className="nav-label">المشاعر</span>
+          </Link>
+          <Link to="/intimacy" className="nav-item">
+            <img src={intimacyImg} alt="الحميمية" className="custom-img-icon-nav" />
+            <span className="nav-label">الحميمية</span>
+          </Link>
+          <Link to="/health" className="nav-item center-action">
+            <div className="center-circle">
+              <img src={healthImg} alt="صحتك" className="custom-img-icon-main" />
+            </div>
+            <span className="nav-label bold">صحتك</span>
+          </Link>
+          <Link to="/swing-forum" className="nav-item">
+            <img src={swingImg} alt="الأرجوحة" className="custom-img-icon-nav" />
+            <span className="nav-label">الأرجوحة</span>
+          </Link>
+          <Link to="/insight" className="nav-item">
+            <img src={insightImg} alt="القفقة" className="custom-img-icon-nav" />
+            <span className="nav-label">القفقة</span>
+          </Link>
+        </div>
+      </nav>
+    </div>
+  );
+}
 
 export default App;
