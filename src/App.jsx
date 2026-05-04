@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LocalNotifications } from '@capacitor/local-notifications';
 
-// استيراد المكونات الموجودة فعلياً في مجلدك بناءً على الصورة
 import Dashboard from './components/Dashboard';
 import PurchasesManager from './components/PurchasesManager';
 import Sales from './components/Sales';
@@ -28,24 +27,23 @@ const App = () => {
   const [suppliers, setSuppliers] = useState([]);      
   const [customers, setCustomers] = useState([]);      
   const [productionData, setProductionData] = useState([]);
+  
+  // حالة جديدة: قائمة انتظار الطلبات في قسم الموردين
+  const [supplierWaitingList, setSupplierWaitingList] = useState([]);
 
-  // طلب إذن الإشعارات عند التشغيل لأول مرة
   useEffect(() => {
     const initNotifications = async () => {
-      try {
-        await LocalNotifications.requestPermissions();
-      } catch (err) {
-        console.warn("Notifications not supported or denied");
-      }
+      try { await LocalNotifications.requestPermissions(); } 
+      catch (err) { console.warn("Notifications not supported"); }
     };
     initNotifications();
   }, []);
 
-  // مراقب المخزن الذكي: يرسل إشعاراً عند نقص أي مادة
+  // مراقب المخزن الذكي
   useEffect(() => {
     stock.forEach(item => {
       if (item.balance < 5) {
-        scheduleAlert("⚠️ تنبيه المخزن", `المنتج (${item.name}) رصيده منخفض: ${item.balance}`);
+        scheduleAlert("⚠️ تنبيه المخزن", `المنتج (${item.name}) رصيده منخفض جداً`);
       }
     });
   }, [stock]);
@@ -54,19 +52,18 @@ const App = () => {
     try {
       await LocalNotifications.schedule({
         notifications: [{
-          title, 
-          body,
-          id: Math.floor(Math.random() * 10000),
-          schedule: { at: new Date(Date.now() + 500) },
-          sound: 'res://notification_sound'
+          title, body, id: Math.floor(Math.random() * 10000),
+          schedule: { at: new Date(Date.now() + 500) }
         }]
       });
-    } catch (e) {
-      console.error("Local notification failed", e);
-    }
+    } catch (e) { console.error(e); }
   };
 
-  // --- محركات التوزيع والحفظ ---
+  // استقبال طلب شراء جديد من قسم المشتريات وتحويله للموردين
+  const handleOrderTrigger = (orderData) => {
+    setSupplierWaitingList(prev => [orderData, ...prev]);
+  };
+
   const handleSavePurchase = (newPurchase) => {
     setInventory(prev => [...prev, newPurchase]);
     setStock(prevStock => {
@@ -78,10 +75,7 @@ const App = () => {
         return updated;
       }
       return [...prevStock, { 
-        id: Date.now(), 
-        name: newPurchase.item, 
-        balance: qty, 
-        price: parseFloat(newPurchase.price || 0) 
+        id: Date.now(), name: newPurchase.item, balance: qty, price: parseFloat(newPurchase.price || 0) 
       }];
     });
     setActivePage('dashboard');
@@ -92,9 +86,7 @@ const App = () => {
     if (type === 'waste') setWaste(prev => [...prev, data]);
     if (data.itemName) {
       setStock(prev => prev.map(item => 
-        item.name === data.itemName 
-        ? { ...item, balance: item.balance - (data.quantity || 0) } 
-        : item
+        item.name === data.itemName ? { ...item, balance: item.balance - (data.quantity || 0) } : item
       ));
     }
   };
@@ -105,20 +97,38 @@ const App = () => {
     switch(activePage) {
       case 'dashboard': 
         return <Dashboard setActivePage={setActivePage} />;
+      
       case 'purchases': 
-        return <PurchasesManager {...commonProps} onPurchaseComplete={handleSavePurchase} />;
+        return (
+          <PurchasesManager 
+            {...commonProps} 
+            stock={stock} 
+            onPurchaseComplete={handleSavePurchase}
+            onOrderTrigger={handleOrderTrigger} 
+          />
+        );
+
+      case 'suppliers': 
+        return (
+          <Suppliers 
+            {...commonProps} 
+            suppliers={suppliers} 
+            waitingList={supplierWaitingList} // تمرير قائمة الانتظار هنا
+            onAddSupplier={(s) => setSuppliers([...suppliers, s])}
+            onUpdateWaitingList={setSupplierWaitingList}
+          />
+        );
+
       case 'inventory': 
         return <Inventory {...commonProps} categories={stock} onDelete={(id) => setStock(stock.filter(s => s.id !== id))} />;
       case 'sales': 
         return <Sales {...commonProps} onSaveSale={(s) => handleGeneralUpdate('sales', s)} customers={customers} />;
       case 'production': 
-        return <ProductionManager {...commonProps} stock={stock} onSaveProduction={(p) => setProductionData([...productionData, p])} />;
+        return <ProductionManager {...commonProps} stock={stock} setStock={setStock} onSaveProduction={(p) => setProductionData([...productionData, p])} onSaveWaste={(w) => handleGeneralUpdate('waste', w)} />;
       case 'waste': 
         return <Waste {...commonProps} inventory={stock} onSaveWaste={(w) => handleGeneralUpdate('waste', w)} />;
       case 'expenses': 
         return <Expenses {...commonProps} onSaveExpense={(e) => setExpenses([...expenses, e])} />;
-      case 'suppliers': 
-        return <Suppliers {...commonProps} suppliers={suppliers} onAddSupplier={(s) => setSuppliers([...suppliers, s])} />;
       case 'customers': 
         return <Customers {...commonProps} customers={customers} onAddCustomer={(c) => setCustomers([...customers, c])} />;
       case 'financials': 
