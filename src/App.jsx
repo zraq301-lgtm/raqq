@@ -28,12 +28,12 @@ const App = () => {
   const [customers, setCustomers] = useState([]);      
   const [productionData, setProductionData] = useState([]);
 
-  // --- وظيفة الربط بين المشتريات والمخزن (Core Function) ---
+  // --- وظيفة الربط بين المشتريات والمخزن (دالة السحب أولاً بأول الذكية) ---
   const handleSavePurchase = (newPurchase) => {
     // 1. تحديث سجل المشتريات العام للتقارير
     setInventory(prev => [...prev, newPurchase]);
 
-    // 2. تحديث أرصدة المخزن الفعلية (الكميات)
+    // 2. تحديث أرصدة المخزن الفعلية مع نظام الشحنات (Batches)
     setStock(prevStock => {
       const itemName = newPurchase.item;
       const itemQuantity = parseFloat(newPurchase.quantity || 0);
@@ -41,12 +41,23 @@ const App = () => {
 
       const existingItemIndex = prevStock.findIndex(s => s.name === itemName);
       
+      const newBatch = {
+        id: Date.now(),
+        quantity: itemQuantity,
+        price: itemPrice,
+        date: newPurchase.date || new Date().toISOString()
+      };
+
       if (existingItemIndex > -1) {
         const updatedStock = [...prevStock];
+        const targetItem = updatedStock[existingItemIndex];
+        
         updatedStock[existingItemIndex] = {
-          ...updatedStock[existingItemIndex],
-          balance: (updatedStock[existingItemIndex].balance || 0) + itemQuantity,
-          price: itemPrice
+          ...targetItem,
+          balance: (targetItem.balance || 0) + itemQuantity,
+          // إضافة الشحنة الجديدة إلى مصفوفة الشحنات لضمان تتبع السعر
+          batches: targetItem.batches ? [...targetItem.batches, newBatch] : [newBatch],
+          price: itemPrice // السعر الأحدث للعرض السريع
         };
         return updatedStock;
       } else {
@@ -55,11 +66,12 @@ const App = () => {
           name: itemName, 
           balance: itemQuantity, 
           price: itemPrice,
-          unit: newPurchase.unit || 'وحدة'
+          unit: newPurchase.unit || 'وحدة',
+          batches: [newBatch] // أول شحنة لهذا الصنف
         }];
       }
     });
-    // العودة التلقائية للوحة التحكم بعد الحفظ
+
     setActivePage('dashboard');
   };
 
@@ -93,7 +105,9 @@ const App = () => {
         return <ProductionManager 
           onBack={() => setActivePage('dashboard')}
           stock={stock}
+          setStock={setStock}
           onSaveProduction={(p) => setProductionData([...productionData, p])}
+          onSaveWaste={(w) => setWaste([...waste, w])}
         />;
 
       case 'waste': 
@@ -146,7 +160,6 @@ const App = () => {
 
   return (
     <div className="app-container">
-      {/* شريط التنقل العلوي (NavBar) يظهر فقط عند الخروج من لوحة التحكم */}
       {activePage !== 'dashboard' && (
         <nav className="nav-bar" style={{ direction: 'rtl' }}>
           <span className="logo">معمول <span className="highlight">راق</span></span>
@@ -156,7 +169,6 @@ const App = () => {
         </nav>
       )}
 
-      {/* عرض المحتوى بناءً على اختيار المستخدم من لوحة التحكم */}
       <main className="main-content">
         {renderPage()}
       </main>
