@@ -1,150 +1,137 @@
 import React, { useState } from 'react';
-import { Factory, PlayCircle, Box, Layout, Hash } from 'lucide-react';
+import { Factory, Save, ArrowRight, AlertTriangle, Box } from 'lucide-react';
 
-const ProductionManager = ({ categories, onProductionComplete }) => {
-  const [production, setProduction] = useState({
-    productionLine: '',
-    categoryName: '',
-    amount: ''
+const ProductionManager = ({ stock, onSaveProduction, onSaveWaste, onBack, setStock }) => {
+  const [formData, setFormData] = useState({
+    date: new Date().toISOString().split('T')[0],
+    shift: 'الأولى',
+    ingredients: {
+      دقيق: 0, سكر: 0, عجوة: 0, سمن: 0, زبدة: 0, لبن: 0, كرتون: 0, تغليف: 0
+    },
+    productionQty: 0, // حجم الإنتاج (كرتونة/وحدة)
+    wasteQty: 0       // التالف
   });
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!production.productionLine || !production.categoryName || !production.amount) {
-      alert("يرجى إكمال بيانات أمر الإنتاج");
-      return;
+  const handleChange = (e, category, field) => {
+    const value = parseFloat(e.target.value) || 0;
+    if (category === 'ingredients') {
+      setFormData({ ...formData, ingredients: { ...formData.ingredients, [field]: value } });
+    } else {
+      setFormData({ ...formData, [field]: value });
     }
-
-    onProductionComplete({
-      productionLine: production.productionLine,
-      categoryName: production.categoryName,
-      amount: parseFloat(production.amount)
-    });
-
-    setProduction({ productionLine: '', categoryName: '', amount: '' });
   };
 
-  const styles = {
-    // تم إلغاء الـ wrapper المضغوط ليعود الحجم لطبيعته
-    container: {
-      padding: '20px',
-      direction: 'rtl',
-      fontFamily: "'Tajawal', sans-serif",
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '20px'
-    },
-    headerCard: {
-      background: 'linear-gradient(135deg, #e67e22 0%, #d35400 100%)',
-      borderRadius: '20px',
-      padding: '25px',
-      color: 'white',
-      boxShadow: '0 10px 20px rgba(230, 126, 34, 0.2)',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center'
-    },
-    // كروت واسعة لا تسبب شعوراً بالتصغير
-    inputCard: {
-      background: '#ffffff',
-      borderRadius: '20px',
-      padding: '20px',
-      boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)',
-      border: '1px solid #eee',
-    },
-    label: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px',
-      fontSize: '1rem', // تكبير الخط للوضع الطبيعي
-      color: '#444',
-      fontWeight: 'bold',
-      marginBottom: '12px'
-    },
-    input: {
-      width: '100%',
-      padding: '15px',
-      fontSize: '1.1rem',
-      borderRadius: '12px',
-      border: '2px solid #f1f5f9',
-      outline: 'none',
-      boxSizing: 'border-box'
-    },
-    submitBtn: {
-      width: '100%',
-      backgroundColor: '#e67e22',
-      color: 'white',
-      padding: '20px',
-      borderRadius: '15px',
-      border: 'none',
-      fontSize: '1.2rem',
-      fontWeight: '900',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: '10px',
-      cursor: 'pointer',
-      marginTop: '10px'
+  const handleProcessProduction = () => {
+    // 1. التحقق من توفر الكميات في المخزن قبل البدء
+    for (const [item, qty] of Object.entries(formData.ingredients)) {
+      const stockItem = stock.find(s => s.name === item);
+      if (!stockItem || stockItem.balance < qty) {
+        alert(`نقص في كمية ${item}! المتوفر: ${stockItem?.balance || 0}`);
+        return;
+      }
     }
+
+    // 2. خصم المكونات من المخزن
+    const updatedStock = stock.map(s => {
+      if (formData.ingredients[s.name]) {
+        return { ...s, balance: s.balance - formData.ingredients[s.name] };
+      }
+      return s;
+    });
+
+    // 3. إضافة المنتج النهائي (المعمول) للمخزن
+    const finalProductName = "معمول جاهز";
+    const productIndex = updatedStock.findIndex(s => s.name === finalProductName);
+    if (productIndex > -1) {
+      updatedStock[productIndex].balance += formData.productionQty;
+    } else {
+      updatedStock.push({
+        id: Date.now(),
+        name: finalProductName,
+        balance: formData.productionQty,
+        unit: 'كرتونة',
+        price: 0
+      });
+    }
+
+    // 4. تسجيل الهالك في قسم الهالك (Waste)
+    if (formData.wasteQty > 0) {
+      onSaveWaste({
+        id: Date.now(),
+        date: formData.date,
+        item: "هالك إنتاج - معمول",
+        quantity: formData.wasteQty,
+        reason: "تالف أثناء التصنيع"
+      });
+    }
+
+    // تنفيذ التحديثات النهائية
+    setStock(updatedStock);
+    onSaveProduction(formData);
+    alert("تم تسجيل الإنتاج، تحديث المخزن، وترحيل الهالك بنجاح!");
+    onBack();
   };
 
   return (
-    <div style={styles.container}>
-      {/* كارت الرأس */}
-      <div style={styles.headerCard}>
-        <div>
-          <h2 style={{margin: 0, fontSize: '1.5rem'}}>أمر الإنتاج</h2>
-          <p style={{margin: 0, opacity: 0.9}}>سحب خامات المعمول</p>
-        </div>
-        <Factory size={40} />
+    <div style={{ padding: '20px', direction: 'rtl', fontFamily: 'Tajawal' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+        <Factory size={32} color="#e67e22" />
+        <h2 style={{ color: '#2c3e50' }}>سجل تشغيل الإنتاج اليومي</h2>
       </div>
 
-      <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
-        {/* كارت التشغيلة */}
-        <div style={styles.inputCard}>
-          <label style={styles.label}><Layout size={22} color="#e67e22" /> اسم المنتج النهائي</label>
-          <input 
-            style={styles.input}
-            placeholder="مثلاً: معمول تمر (طلبية الصباح)"
-            value={production.productionLine}
-            onChange={(e) => setProduction({...production, productionLine: e.target.value})}
-          />
-        </div>
-
-        {/* كارت القسم */}
-        <div style={styles.inputCard}>
-          <label style={styles.label}><Box size={22} color="#e67e22" /> السحب من القسم</label>
-          <select 
-            style={styles.input}
-            value={production.categoryName}
-            onChange={(e) => setProduction({...production, categoryName: e.target.value})}
-          >
-            <option value="">اختر القسم للسحب منه...</option>
-            {categories.map(cat => (
-              <option key={cat.id} value={cat.name}>
-                {cat.name} (المتوفر: {cat.balance})
-              </option>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+        {/* قسم المكونات (حسب الصورة) */}
+        <div style={{ background: '#fff', padding: '20px', borderRadius: '15px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
+          <h3 style={{ borderBottom: '2px solid #eee', pb: '10px' }}>المكونات المستخدمة</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '15px' }}>
+            {Object.keys(formData.ingredients).map(ing => (
+              <div key={ing}>
+                <label style={{ fontSize: '0.9rem', display: 'block' }}>{ing}:</label>
+                <input 
+                  type="number" 
+                  onChange={(e) => handleChange(e, 'ingredients', ing)}
+                  style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #ccc' }}
+                />
+              </div>
             ))}
-          </select>
+          </div>
         </div>
 
-        {/* كارت الكمية */}
-        <div style={styles.inputCard}>
-          <label style={styles.label}><Hash size={22} color="#e67e22" /> الكمية المستهلكة</label>
-          <input 
-            type="number"
-            style={styles.input}
-            placeholder="0.00"
-            value={production.amount}
-            onChange={(e) => setProduction({...production, amount: e.target.value})}
-          />
-        </div>
+        {/* قسم مخرجات الإنتاج */}
+        <div style={{ background: '#fff', padding: '20px', borderRadius: '15px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
+          <h3 style={{ borderBottom: '2px solid #eee', pb: '10px' }}>مخرجات الوردية</h3>
+          <div style={{ marginTop: '15px' }}>
+            <label>حجم الإنتاج التام (كرتونة):</label>
+            <input 
+              type="number" 
+              onChange={(e) => handleChange(e, 'output', 'productionQty')}
+              style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '2px solid #2ecc71', marginBottom: '15px' }}
+            />
+            
+            <label style={{ color: '#e74c3c' }}>الكمية التالفة (الهالك):</label>
+            <input 
+              type="number" 
+              onChange={(e) => handleChange(e, 'output', 'wasteQty')}
+              style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '2px solid #e74c3c' }}
+            />
+          </div>
 
-        <button type="submit" style={styles.submitBtn}>
-          <PlayCircle size={28} />
-          تأكيد الإنتاج الآن
-        </button>
-      </form>
+          <div style={{ marginTop: '30px', display: 'flex', gap: '10px' }}>
+            <button 
+              onClick={handleProcessProduction}
+              style={{ flex: 1, padding: '15px', background: '#2ecc71', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+            >
+              <Save size={20} /> ترحيل الإنتاج والمخزن
+            </button>
+            <button 
+              onClick={onBack}
+              style={{ padding: '15px', background: '#95a5a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer' }}
+            >
+              <ArrowRight size={20} />
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
