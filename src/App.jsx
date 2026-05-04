@@ -7,7 +7,7 @@ import Waste from './components/Waste';
 import Expenses from './components/Expenses';
 import Suppliers from './components/Suppliers';
 import Financials from './components/Financials';
-import Reports from './components/Reports'; // المكون الذي يضم التقارير السبعة
+import Reports from './components/Reports'; 
 import Customers from './components/Customers';
 
 // استدعاء ملف التنسيق الموحد
@@ -16,34 +16,63 @@ import './App.css';
 const App = () => {
   const [activePage, setActivePage] = useState('dashboard');
   
-  // --- الحالة المركزية للبيانات (المصدر الوحيد للحقيقة) ---
-  const [inventory, setInventory] = useState([]);      // للمشتريات، الموردين، والجرد
-  const [salesData, setSalesData] = useState([]);      // للمبيعات، العملاء، والنقدي
-  const [expenses, setExpenses] = useState([]);        // للمصروفات والنقدي
-  const [waste, setWaste] = useState([]);               // للهالك
-  const [suppliers, setSuppliers] = useState([]);      // قائمة الموردين
-  const [customers, setCustomers] = useState([]);      // قائمة العملاء
-  const [staffData, setStaffData] = useState([]);      // لشؤون العمال (جديد)
+  // --- الحالة المركزية للبيانات ---
+  const [inventory, setInventory] = useState([]);      // سجل فواتير المشتريات
+  const [stock, setStock] = useState([]);              // حالة المخزن الحالية (الكميات الفعلية)
+  const [salesData, setSalesData] = useState([]);      
+  const [expenses, setExpenses] = useState([]);        
+  const [waste, setWaste] = useState([]);              
+  const [suppliers, setSuppliers] = useState([]);      
+  const [customers, setCustomers] = useState([]);      
+  const [staffData, setStaffData] = useState([]);      
 
-  // --- دوال المعالجة (سحب البيانات من الأقسام) ---
+  // --- دوال المعالجة ---
+
+  // دالة حفظ المشتريات وتحديث المخزن تلقائياً
   const handleSavePurchase = (newPurchase) => {
+    // 1. إضافة الفاتورة لسجل المشتريات
     setInventory([...inventory, newPurchase]);
+
+    // 2. تحديث كميات المخزن (Stock)
+    setStock(prevStock => {
+      const existingItemIndex = prevStock.findIndex(item => item.name === newPurchase.itemName);
+      
+      if (existingItemIndex > -1) {
+        // إذا الصنف موجود، نحدث الكمية فقط
+        const updatedStock = [...prevStock];
+        updatedStock[existingItemIndex] = {
+          ...updatedStock[existingItemIndex],
+          quantity: parseFloat(updatedStock[existingItemIndex].quantity) + parseFloat(newPurchase.quantity)
+        };
+        return updatedStock;
+      } else {
+        // إذا صنف جديد، نضيفه للمخزن
+        return [...prevStock, { 
+          id: Date.now(), 
+          name: newPurchase.itemName, 
+          quantity: parseFloat(newPurchase.quantity),
+          unit: newPurchase.unit 
+        }];
+      }
+    });
+
     setActivePage('dashboard');
   };
 
   const handleSaveSale = (newSale) => {
     setSalesData([...salesData, newSale]);
+    // ملاحظة: هنا يمكن مستقبلاً إضافة دالة لخصم المباع من الـ stock
     setActivePage('dashboard');
   };
 
-  // حساب الإحصائيات المالية السريعة للوحة التحكم
+  // حساب الإحصائيات المالية
   const financialStats = {
     income: salesData.reduce((sum, item) => sum + (item.total || 0), 0),
     expenses: expenses.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0),
     wasteValue: waste.length * 50 
   };
 
-  // --- محرك عرض الصفحات النشطة وتمرير البيانات للتقارير السبعة ---
+  // --- محرك عرض الصفحات ---
   const renderPage = () => {
     switch(activePage) {
       case 'dashboard': 
@@ -66,7 +95,7 @@ const App = () => {
         return <Waste 
           onBack={() => setActivePage('dashboard')} 
           onSaveWaste={(w) => setWaste([...waste, w])} 
-          inventory={inventory} 
+          inventory={stock} // نمرر المخزن الحالي لخصم الهالك منه
         />;
 
       case 'expenses': 
@@ -89,13 +118,13 @@ const App = () => {
         />;
 
       case 'reports': 
-        // دمج التقارير السبعة: تمرير كل المصفوفات لمكون التقارير الرئيسي
         return <Reports 
           onBack={() => setActivePage('dashboard')} 
-          inventory={inventory}    // لتقارير المشتريات، الموردين، والجرد
-          salesData={salesData}    // لتقارير المبيعات، العملاء، والنقدي
-          expenses={expenses}      // لتقارير المصروفات والنقدي
-          staffData={staffData}    // لتقرير العمال
+          inventory={inventory}    
+          stock={stock}            // تقرير الجرد الفعلي
+          salesData={salesData}    
+          expenses={expenses}      
+          staffData={staffData}    
         />;
 
       case 'customers': 
@@ -117,8 +146,6 @@ const App = () => {
 
   return (
     <div className="app-container">
-      
-      {/* الهيدر العلوي - يظهر في الصفحات الداخلية */}
       {activePage !== 'dashboard' && (
         <nav className="nav-bar" style={{ 
           padding: '10px 15px', 
@@ -150,7 +177,6 @@ const App = () => {
         </nav>
       )}
 
-      {/* منطقة عرض المحتوى الموحدة */}
       <main className="main-content">
         {renderPage()}
       </main>
