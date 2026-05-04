@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-// استيراد المكونات
+// استيراد المكونات الأساسية
 import Dashboard from './components/Dashboard';
 import PurchasesManager from './components/PurchasesManager';
 import Sales from './components/Sales';
@@ -7,7 +7,7 @@ import Waste from './components/Waste';
 import Expenses from './components/Expenses';
 import Suppliers from './components/Suppliers';
 import Financials from './components/Financials';
-import Reports from './components/Reports';
+import Reports from './components/Reports'; // المكون الذي يضم التقارير السبعة
 import Customers from './components/Customers';
 
 // استدعاء ملف التنسيق الموحد
@@ -16,15 +16,16 @@ import './App.css';
 const App = () => {
   const [activePage, setActivePage] = useState('dashboard');
   
-  // --- الحالة المركزية للبيانات ---
-  const [inventory, setInventory] = useState([]);
-  const [salesData, setSalesData] = useState([]);
-  const [expenses, setExpenses] = useState([]);
-  const [waste, setWaste] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
-  const [customers, setCustomers] = useState([]);
+  // --- الحالة المركزية للبيانات (المصدر الوحيد للحقيقة) ---
+  const [inventory, setInventory] = useState([]);      // للمشتريات، الموردين، والجرد
+  const [salesData, setSalesData] = useState([]);      // للمبيعات، العملاء، والنقدي
+  const [expenses, setExpenses] = useState([]);        // للمصروفات والنقدي
+  const [waste, setWaste] = useState([]);               // للهالك
+  const [suppliers, setSuppliers] = useState([]);      // قائمة الموردين
+  const [customers, setCustomers] = useState([]);      // قائمة العملاء
+  const [staffData, setStaffData] = useState([]);      // لشؤون العمال (جديد)
 
-  // --- دوال المعالجة ---
+  // --- دوال المعالجة (سحب البيانات من الأقسام) ---
   const handleSavePurchase = (newPurchase) => {
     setInventory([...inventory, newPurchase]);
     setActivePage('dashboard');
@@ -35,14 +36,14 @@ const App = () => {
     setActivePage('dashboard');
   };
 
-  // حساب الإحصائيات المالية
+  // حساب الإحصائيات المالية السريعة للوحة التحكم
   const financialStats = {
     income: salesData.reduce((sum, item) => sum + (item.total || 0), 0),
     expenses: expenses.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0),
     wasteValue: waste.length * 50 
   };
 
-  // --- محرك عرض الصفحات النشطة ---
+  // --- محرك عرض الصفحات النشطة وتمرير البيانات للتقارير السبعة ---
   const renderPage = () => {
     switch(activePage) {
       case 'dashboard': 
@@ -88,9 +89,13 @@ const App = () => {
         />;
 
       case 'reports': 
+        // دمج التقارير السبعة: تمرير كل المصفوفات لمكون التقارير الرئيسي
         return <Reports 
           onBack={() => setActivePage('dashboard')} 
-          transactions={salesData} 
+          inventory={inventory}    // لتقارير المشتريات، الموردين، والجرد
+          salesData={salesData}    // لتقارير المبيعات، العملاء، والنقدي
+          expenses={expenses}      // لتقارير المصروفات والنقدي
+          staffData={staffData}    // لتقرير العمال
         />;
 
       case 'customers': 
@@ -111,10 +116,9 @@ const App = () => {
   };
 
   return (
-    // استخدام className="app-container" ليجلب التنسيق من App.css
     <div className="app-container">
       
-      {/* الهيدر العلوي - يظهر فقط في الصفحات الداخلية */}
+      {/* الهيدر العلوي - يظهر في الصفحات الداخلية */}
       {activePage !== 'dashboard' && (
         <nav className="nav-bar" style={{ 
           padding: '10px 15px', 
@@ -123,10 +127,11 @@ const App = () => {
           justifyContent: 'space-between', 
           alignItems: 'center',
           boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-          marginBottom: '10px'
+          marginBottom: '10px',
+          direction: 'rtl'
         }}>
           <span style={{ fontWeight: 'bold', color: '#2c3e50' }}>
-             معمول <span style={{color: '#e67e22'}}>راق</span>
+              معمول <span style={{color: '#e67e22'}}>راق</span>
           </span>
           <button 
             onClick={() => setActivePage('dashboard')}
@@ -136,7 +141,8 @@ const App = () => {
               border: '1px solid #eee',
               backgroundColor: '#f8f9fa',
               cursor: 'pointer',
-              fontSize: '0.9rem'
+              fontSize: '0.9rem',
+              fontFamily: 'Tajawal'
             }}
           >
             الرئيسية
@@ -144,7 +150,7 @@ const App = () => {
         </nav>
       )}
 
-      {/* منطقة عرض المحتوى مع كلاس المسافات الموحد */}
+      {/* منطقة عرض المحتوى الموحدة */}
       <main className="main-content">
         {renderPage()}
       </main>
