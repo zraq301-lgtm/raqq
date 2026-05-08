@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Layers, AlertCircle, Tag, ArrowRight, RefreshCcw } from 'lucide-react';
 
-const Inventory = ({ categories, onBack }) => {
+const Inventory = ({ categories, onBack, onGoToGrid }) => {
   const styles = {
     container: { padding: '20px', direction: 'rtl', maxWidth: '900px', margin: '0 auto', fontFamily: "'Tajawal', sans-serif" },
     shelfTitle: { fontSize: '1.5rem', fontWeight: '800', color: '#1e293b', marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '2px solid #e2e8f0', paddingBottom: '15px' },
@@ -39,8 +39,16 @@ const Inventory = ({ categories, onBack }) => {
           <Layers size={28} color="#2563eb" />
           <span>إحصائيات المخازن المستمرة</span>
         </div>
-        <div style={{ fontSize: '0.8rem', color: '#64748b', background: '#e2e8f0', padding: '5px 12px', borderRadius: '20px' }}>
-           إجمالي الأصناف: {categories.length}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button
+            onClick={onGoToGrid}
+            style={{ fontSize: '0.8rem', color: 'white', background: '#3b82f6', padding: '5px 12px', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+          >
+            إدخال سريع (Excel)
+          </button>
+          <div style={{ fontSize: '0.8rem', color: '#64748b', background: '#e2e8f0', padding: '5px 12px', borderRadius: '20px' }}>
+             إجمالي الأصناف: {categories.length}
+          </div>
         </div>
       </div>
 
