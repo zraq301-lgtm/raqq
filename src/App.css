@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* الإعدادات العامة - مريحة للعين ومناسبة للموبايل */
 .app-container {
   min-height: 100vh;
