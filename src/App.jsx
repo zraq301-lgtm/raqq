@@ -1,142 +1,169 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import Swal from 'sweetalert2';
+import { Preferences } from '@capacitor/preferences';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import { CapacitorHttp, Capacitor } from '@capacitor/core';
+import Swal from 'sweetalert2';
 
-// استيراد المكونات المتوفرة فقط (تأكد أن هذه الملفات موجودة في مجلد components)
+// استيراد المكونات
 import Dashboard from './components/Dashboard';
 import Inventory from './components/Inventory';
 import ProductionManager from './components/ProductionManager';
 
-import './App.css';
-
-const httpPost = async (url, body) => {
-  if (Capacitor.isNativePlatform()) {
-    const response = await CapacitorHttp.post({
-      url,
-      headers: { 'Content-Type': 'application/json' },
-      data: body
-    });
-    return response.data;
-  }
-  const res = await fetch(url, { 
-    method: 'POST', 
-    headers: { 'Content-Type': 'application/json' }, 
-    body: JSON.stringify(body) 
-  });
-  return res.json();
-};
-
-const httpGet = async (url) => {
-  if (Capacitor.isNativePlatform()) {
-    const response = await CapacitorHttp.get({
-      url,
-      headers: { 'Content-Type': 'application/json' }
-    });
-    return typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
-  }
-  const res = await fetch(url);
-  return res.json();
-};
-
-const showSwal = (title, icon = 'success') => {
-  Swal.fire({ title, icon, timer: 1500, showConfirmButton: false, position: 'center', toast: true });
-};
+const API_BASE = 'https://maamoul-pro-five.vercel.app/api';
 
 const App = () => {
   const [activePage, setActivePage] = useState('dashboard');
+  const [stock, setStock] = useState([]);
+  const [productionHistory, setProductionHistory] = useState([]);
 
-  const loadInitial = (key, initialValue) => {
-    try {
-      const saved = localStorage.getItem(key);
-      return saved ? JSON.parse(saved) : initialValue;
-    } catch (e) { return initialValue; }
+  // --- 1. استقرار البيانات (Preferences API) ---
+  const saveData = async (key, value) => {
+    await Preferences.set({ key, value: JSON.stringify(value) });
   };
 
-  const [stock, setStock] = useState(() => loadInitial('stock', []));
-  const [productionData, setProductionData] = useState(() => loadInitial('productionData', []));
+  const loadData = async (key) => {
+    const { value } = await Preferences.get({ key });
+    return value ? JSON.parse(value) : null;
+  };
 
+  // --- 2. نظام الإشعارات الذكي (AI-Informed Notifications) ---
+  const checkProductionTrend = async (history) => {
+    if (history.length < 3) return;
+
+    // الحصول على آخر 3 مدخلات إنتاج
+    const last3Days = history.slice(0, 3).map(p => parseFloat(p.totalActualCost) || 0);
+    
+    // منطق الذكاء: إذا كان اليوم الثالث أقل من الثاني، والثاني أقل من الأول
+    if (last3Days[0] < last3Days[1] && last3Days[1] < last3Days[2]) {
+      await LocalNotifications.schedule({
+        notifications: [{
+          title: "⚠️ تنبيه ذكي: تراجع الإنتاج",
+          body: `لاحظ نظام "راق" هبوطاً مستمراً في الإنتاج لـ 3 أيام. يرجى مراجعة الخامات أو كفاءة الورديات.`,
+          id: 1,
+          schedule: { at: new Date(Date.now() + 1000) },
+          sound: 'beep.wav'
+        }]
+      });
+    }
+  };
+
+  // --- 3. منطق الاتصال الخارجي (CapacitorHttp) ---
+  const syncWithCloud = async (collectionName, data) => {
+    if (!data || data.length === 0) return;
+    try {
+      await CapacitorHttp.post({
+        url: `${API_BASE}/sync`,
+        headers: { 'Content-Type': 'application/json' },
+        data: { collectionName, data }
+      });
+    } catch (error) {
+      console.error("Cloud sync failed:", error);
+    }
+  };
+
+  // تحميل البيانات عند البداية
   useEffect(() => {
-    const fetchFromCloud = async (collectionName, setter) => {
+    const init = async () => {
+      // طلب إذن الإشعارات
+      await LocalNotifications.requestPermissions();
+      
+      const savedStock = await loadData('stock');
+      if (savedStock) setStock(savedStock);
+
+      const savedHistory = await loadData('productionHistory');
+      if (savedHistory) setProductionHistory(savedHistory);
+
+      // جلب البيانات من السيرفر لتحديث المحلي
       try {
-        const parsed = await httpGet(`https://maamoul-pro-five.vercel.app/api/get-data?collectionName=${collectionName}`);
-        if (parsed?.success && parsed?.data) {
-          setter(parsed.data);
-          localStorage.setItem(collectionName, JSON.stringify(parsed.data));
+        const response = await CapacitorHttp.get({ 
+          url: `${API_BASE}/get-data?collectionName=productionData` 
+        });
+        if (response.data?.success) {
+          const cloudData = response.data.data;
+          setProductionHistory(cloudData);
+          await saveData('productionHistory', cloudData);
         }
-      } catch (error) { console.error("Fetch error:", error); }
+      } catch (e) { console.log("Offline mode: Using cached data"); }
     };
-    fetchFromCloud('stock', setStock);
-    fetchFromCloud('productionData', setProductionData);
+    init();
   }, []);
 
+  // حفظ ومزامنة البيانات عند التغيير
   useEffect(() => {
-    const syncWithCloud = async (collectionName, data) => {
-      if (!data || data.length === 0) return;
-      try {
-        await httpPost('https://maamoul-pro-five.vercel.app/api/sync', { collectionName, data });
-      } catch (error) { console.error("Sync error:", error); }
+    if (stock.length > 0) {
+      saveData('stock', stock);
+      syncWithCloud('stock', stock);
+    }
+    if (productionHistory.length > 0) {
+      saveData('productionHistory', productionHistory);
+      syncWithCloud('productionData', productionHistory);
+      checkProductionTrend(productionHistory); // فحص تريند الإنتاج
+    }
+  }, [stock, productionHistory]);
+
+  // --- 4. الحسابات والذكاء المالي ---
+  const stats = useMemo(() => {
+    const totalCost = productionHistory.reduce((sum, p) => sum + (parseFloat(p.totalActualCost) || 0), 0);
+    return {
+      totalItems: stock.length,
+      lowStockAlert: stock.filter(item => (item.balance || 0) < 10).length,
+      totalProductionValue: totalCost.toFixed(2),
+      stockValue: stock.reduce((sum, s) => sum + ((s.balance || 0) * (s.price || 0)), 0).toFixed(2),
     };
-    localStorage.setItem('stock', JSON.stringify(stock));
-    localStorage.setItem('productionData', JSON.stringify(productionData));
-    syncWithCloud('stock', stock);
-    syncWithCloud('productionData', productionData);
-  }, [stock, productionData]);
+  }, [stock, productionHistory]);
 
-  const stats = useMemo(() => ({
-    totalItems: stock.length,
-    lowStockAlert: stock.filter(item => (item.balance || 0) < 10).length,
-    totalProductionVolume: productionData.reduce((sum, p) => sum + (parseFloat(p.totalUnits) || 0), 0),
-    stockValue: stock.reduce((sum, s) => sum + ((parseFloat(s.balance) || 0) * (parseFloat(s.price) || 0)), 0),
-  }), [stock, productionData]);
-
-  const handleSaveProduction = (production) => {
-    const totalUnits = (parseFloat(production.boxes) || 0) * (parseFloat(production.unitsPerBox) || 0);
-    const productionEntry = { ...production, totalUnits, id: Date.now(), date: new Date().toLocaleDateString() };
-    setProductionData(prev => [productionEntry, ...prev]);
-    setStock(prev => {
-      const idx = prev.findIndex(s => s.name === production.productName);
-      if (idx > -1) {
-        const up = [...prev];
-        up[idx] = { ...up[idx], balance: (up[idx].balance || 0) + totalUnits };
-        return up;
-      }
-      return [...prev, { id: Date.now(), name: production.productName, balance: totalUnits, price: 0, unit: 'وحدة', category: 'منتج نهائي' }];
+  const handleSaveProduction = (newProd) => {
+    setProductionHistory(prev => [newProd, ...prev]);
+    Swal.fire({
+      title: 'تم الحفظ',
+      text: 'تم ترحيل الإنتاج للمخزن ومزامنة السحابة',
+      icon: 'success',
+      toast: true,
+      position: 'top-end',
+      timer: 2000,
+      showConfirmButton: false
     });
-    showSwal(`تم إنتاج ${totalUnits} وحدة`);
-  };
-
-  const handleGenericDelete = async (collectionName, id, setter) => {
-    setter(prev => prev.filter(item => (item.id !== id && item._id !== id)));
-    try {
-      await httpPost('https://maamoul-pro-five.vercel.app/api/delete-item', { collectionName, id });
-      showSwal('تم الحذف');
-    } catch (e) { console.error(e); }
   };
 
   const renderPage = () => {
-    const cp = { onBack: () => setActivePage('dashboard') };
+    const common = { onBack: () => setActivePage('dashboard') };
     switch (activePage) {
-      case 'dashboard': return <Dashboard setActivePage={setActivePage} stats={stats} />;
-      case 'inventory': return <Inventory {...cp} categories={stock} setStock={setStock} onDeleteItem={(id) => handleGenericDelete('stock', id, setStock)} />;
-      case 'production': return <ProductionManager {...cp} stock={stock} onSaveProduction={handleSaveProduction} />;
-      default: return <Dashboard setActivePage={setActivePage} stats={stats} />;
+      case 'dashboard': 
+        return <Dashboard 
+                  setActivePage={setActivePage} 
+                  productionHistory={productionHistory} 
+                  stats={stats} 
+               />;
+      case 'inventory': 
+        return <Inventory {...common} stock={stock} setStock={setStock} />;
+      case 'production': 
+        return <ProductionManager {...common} stock={stock} setStock={setStock} onSaveProduction={handleSaveProduction} />;
+      default: 
+        return <Dashboard setActivePage={setActivePage} productionHistory={productionHistory} />;
     }
   };
 
   return (
-    <div className="app-container" style={{ direction: 'rtl' }}>
-      <main className="main-content">{renderPage()}</main>
-      <nav className="bottom-nav">
-        {[
-          { id: 'dashboard', label: 'الرئيسية', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-          { id: 'inventory', label: 'المخزن', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
-          { id: 'production', label: 'الإنتاج', icon: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z' }
-        ].map(item => (
-          <button key={item.id} className={`nav-item ${activePage === item.id ? 'active' : ''}`} onClick={() => setActivePage(item.id)}>
-            <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d={item.icon} /></svg>
-            <span className="nav-label">{item.label}</span>
-          </button>
-        ))}
+    <div className="app-container" style={{ direction: 'rtl', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+      <main className="main-content" style={{ paddingBottom: '80px' }}>
+        {renderPage()}
+      </main>
+
+      {/* Nav السفلي */}
+      <nav className="bottom-nav" style={{
+        position: 'fixed', bottom: 0, width: '100%', backgroundColor: '#fff', 
+        display: 'flex', justifyContent: 'space-around', padding: '10px 0',
+        boxShadow: '0 -2px 10px rgba(0,0,0,0.05)', borderTop: '1px solid #e2e8f0'
+      }}>
+        <button onClick={() => setActivePage('dashboard')} style={{ border: 'none', background: 'none', color: activePage === 'dashboard' ? '#e67e22' : '#64748b' }}>
+          <div style={{ textAlign: 'center' }}>الرئيسية</div>
+        </button>
+        <button onClick={() => setActivePage('production')} style={{ border: 'none', background: 'none', color: activePage === 'production' ? '#e67e22' : '#64748b' }}>
+          <div style={{ textAlign: 'center' }}>الإنتاج</div>
+        </button>
+        <button onClick={() => setActivePage('inventory')} style={{ border: 'none', background: 'none', color: activePage === 'inventory' ? '#e67e22' : '#64748b' }}>
+          <div style={{ textAlign: 'center' }}>المخزن</div>
+        </button>
       </nav>
     </div>
   );
