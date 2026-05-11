@@ -1,22 +1,16 @@
 import React, { useState } from 'react';
 import { Package, Truck, Archive } from 'lucide-react';
 
-// --- التصحيح الذكي للمسارات (حرف p صغير ليطابق المجلد الفعلي) ---
+// تم تعديل المسارات هنا لتصبح بحروف صغيرة (page) لتطابق المسار الفعلي
 import RawMaterials from './page/RawMaterials';
 import SupplyEntry from './page/SupplyEntry';
 import FinishedProducts from './page/FinishedProducts';
 
 const Inventory = ({ categories = [], onDeleteItem, onInventoryEntry }) => {
-  // الحالة المسؤولة عن تحديد أي واجهة تظهر الآن
   const [activeTab, setActiveTab] = useState('raw');
 
   const styles = {
-    container: { 
-      padding: '15px', 
-      direction: 'rtl', 
-      backgroundColor: '#f0f4f8', 
-      minHeight: '100vh' 
-    },
+    container: { padding: '15px', direction: 'rtl', backgroundColor: '#f0f4f8', minHeight: '100vh' },
     tabContainer: { 
       display: 'flex', 
       background: '#fff', 
@@ -43,18 +37,13 @@ const Inventory = ({ categories = [], onDeleteItem, onInventoryEntry }) => {
       gap: '8px',
       fontSize: '14px'
     },
-    activeTab: { 
-      background: '#22c55e', 
-      color: '#fff' 
-    },
-    contentArea: { 
-      marginTop: '10px' 
-    }
+    activeTab: { background: '#22c55e', color: '#fff' },
+    contentArea: { marginTop: '10px' }
   };
 
   return (
     <div style={styles.container}>
-      {/* شريط التنقل العلوي الذكي */}
+      {/* شريط التنقل */}
       <div style={styles.tabContainer}>
         <div 
           style={{...styles.tab, ...(activeTab === 'raw' ? styles.activeTab : {})}} 
@@ -76,10 +65,8 @@ const Inventory = ({ categories = [], onDeleteItem, onInventoryEntry }) => {
         </div>
       </div>
 
-      {/* منطقة عرض المحتوى المتغيرة حسب التبويب المختار */}
       <div style={styles.contentArea}>
-        
-        {/* 1. واجهة الخامات والمواد الأولية */}
+        {/* واجهة الخامات */}
         {activeTab === 'raw' && (
           <RawMaterials 
             categories={categories} 
@@ -87,7 +74,7 @@ const Inventory = ({ categories = [], onDeleteItem, onInventoryEntry }) => {
           />
         )}
 
-        {/* 2. واجهة تسجيل عمليات التوريد الجديدة */}
+        {/* واجهة تسجيل التوريد */}
         {activeTab === 'supply' && (
           <SupplyEntry 
             onInventoryEntry={onInventoryEntry} 
@@ -95,14 +82,13 @@ const Inventory = ({ categories = [], onDeleteItem, onInventoryEntry }) => {
           />
         )}
 
-        {/* 3. واجهة عرض وإدارة المنتجات النهائية */}
+        {/* واجهة المنتجات النهائية */}
         {activeTab === 'finished' && (
           <FinishedProducts 
             categories={categories} 
             onDeleteItem={onDeleteItem} 
           />
         )}
-
       </div>
     </div>
   );
