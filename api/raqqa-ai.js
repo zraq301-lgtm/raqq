@@ -26,7 +26,7 @@ export default async function handler(req, res) {
         const imageRegex = /https?:\/\/\S+\.(jpg|jpeg|png|webp|gif)/i;
         const foundImageUrl = prompt?.match(imageRegex);
 
-        // 1. البحث أولاً في مكتبة Mixedbread المتخصصة (كما في كودك الأصلي)
+        // 1. البحث أولاً في مكتبة Mixedbread المتخصصة
         let libraryContext = "";
         try {
             const mxbRes = await fetch(`https://api.mixedbread.ai/v1/stores/${storeId}/query`, {
@@ -49,12 +49,24 @@ export default async function handler(req, res) {
             console.error("Mixedbread Error: ", err.message);
         }
 
-        // 2. إعداد الطلب لـ Groq
-        let groqModel = "llama-3.3-70b-versatile"; // النموذج الأصلي
+        // 2. إعداد الطلب لـ Groq مع "الدالة التدريبية للمحلل الذكي"
+        let groqModel = "llama-3.3-70b-versatile"; 
         let messages = [];
 
+        // تعريف هوية المحلل (دالة التدريب)
+        const productionAnalystSystemPrompt = `
+        أنتِ "رقة"، المحللة الذكية لعمليات إنتاج مصنع المعمول. 
+        مهمتك الأساسية: 
+        1. تحليل بيانات الإنتاج اليومية (الكميات، التكاليف، الورديات).
+        2. رصد أي هبوط في الإنتاج لثلاثة أيام متتالية وإصدار تحذير فوري.
+        3. مقارنة الإنتاج الحالي بمتطلبات السوق وتوقعات الطلب.
+        4. تقديم تقرير ذكي يشمل: (أداء اليوم، نسبة التغير عن الأمس، كفاءة الخامات، وتوصية لتحسين الربحية).
+        5. إذا كانت البيانات الموفرة من المكتبة تحتوي على أرقام، استخدمي المعادلات الرياضية بدقة لتقديم نسب مئوية.
+        كوني حازمة في التنبيهات، ولبقة في التوصيات.
+        المعلومات المتوفرة من سجلاتك: ${libraryContext}
+        `;
+
         if (foundImageUrl) {
-            // إذا وجد رابط صورة، نستخدم نموذج الرؤية
             groqModel = "llama-3.2-11b-vision-preview";
             messages = [
                 {
@@ -66,13 +78,8 @@ export default async function handler(req, res) {
                 }
             ];
         } else {
-            // الاستمرار بالوضع الأصلي للنصوص
-            const systemPrompt = libraryContext 
-                ? `أنتِ رقة، مساعدة خبيرة. استخدمي المعلومات التالية من المكتبة للرد بدقة: ${libraryContext}`
-                : "أنتِ رقة، ذكاء اصطناعي لبق وذكي. أجيبي على الأسئلة بوضوح.";
-            
             messages = [
-                { role: "system", content: systemPrompt },
+                { role: "system", content: productionAnalystSystemPrompt },
                 { role: "user", content: prompt }
             ];
         }
@@ -86,7 +93,7 @@ export default async function handler(req, res) {
             body: JSON.stringify({
                 model: groqModel,
                 messages: messages,
-                temperature: 0.6
+                temperature: 0.5 // تقليل الحرارة لزيادة الدقة في الأرقام
             })
         });
 
@@ -95,13 +102,12 @@ export default async function handler(req, res) {
         if (data.choices && data.choices[0]) {
             res.status(200).json({ message: data.choices[0].message.content });
         } else {
-            // لتجنب خطأ "فشل رد الذكاء الاصطناعي" عند وجود مشاكل في النموذج
             console.error("Groq Response Error:", data);
             throw new Error(data.error?.message || "فشل رد الذكاء الاصطناعي");
         }
 
     } catch (error) {
         console.error("Final API Error:", error);
-        res.status(200).json({ message: "عذراً رقيقة، رقة تواجه ضغطاً في الاتصال حالياً. حاولي مرة أخرى." });
+        res.status(200).json({ message: "عذراً، رقة تواجه ضغطاً في تحليل البيانات حالياً. حاولي مرة أخرى." });
     }
 }
