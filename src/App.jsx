@@ -33,8 +33,6 @@ const App = () => {
   };
 
   // --- 2. نظام المزامنة الذكي (Cloud Bridge) ---
-  
-  // دالة جلب البيانات الشاملة
   const fetchCloudData = useCallback(async () => {
     try {
       const response = await CapacitorHttp.get({ 
@@ -50,8 +48,8 @@ const App = () => {
     }
   }, []);
 
-  // دالة الحفظ والمزامنة (ERP Push)
   const syncData = async (collection, data) => {
+    if (!data || data.length === 0) return;
     setIsSyncing(true);
     try {
       await CapacitorHttp.post({
@@ -66,14 +64,36 @@ const App = () => {
     }
   };
 
-  // دالة الحفظ الجديدة لمعالجة توريد المخزن (تمت إضافتها لحل مشكلة الصورة)
-  const handleSaveInventory = async (updatedStock) => {
-    setStock(updatedStock);
-    await storage.save('stock', updatedStock);
-    await syncData('stock', updatedStock);
+  // --- ضبط دالة الحفظ لتعالج التوريد وتحدث المخزن فوراً ---
+  const handleSaveInventory = async (p) => {
+    // إذا كانت البيانات قادمة كصنف توريد (Object)
+    if (p.item) {
+      const qty = parseFloat(p.quantity || 0);
+      const price = parseFloat(p.price || 0);
+      
+      setStock(prev => {
+        const idx = prev.findIndex(s => s.name === p.item);
+        let updated;
+        if (idx > -1) {
+          updated = [...prev];
+          updated[idx] = { ...updated[idx], balance: (updated[idx].balance || 0) + qty, price: price || updated[idx].price };
+        } else {
+          updated = [...prev, { id: Date.now(), name: p.item, balance: qty, price, unit: p.unit || 'وحدة' }];
+        }
+        storage.save('stock', updated);
+        syncData('stock', updated);
+        return updated;
+      });
+      Swal.fire({ title: 'تم حفظ التوريد', icon: 'success', timer: 1000, showConfirmButton: false });
+    } 
+    // إذا كانت البيانات مصفوفة كاملة محدثة
+    else if (Array.isArray(p)) {
+      setStock(p);
+      await storage.save('stock', p);
+      await syncData('stock', p);
+    }
   };
 
-  // دالة الحذف النهائي (ERP Purge)
   const performDelete = async (collection, id) => {
     try {
       await CapacitorHttp.post({
@@ -82,7 +102,7 @@ const App = () => {
         data: { collectionName: collection, id }
       });
     } catch (error) {
-      Swal.fire('خطأ مزامنة', 'سيتم الحذف محلياً والمحاولة لاحقاً سحابياً', 'warning');
+      console.error("Delete sync error");
     }
   };
 
@@ -90,27 +110,14 @@ const App = () => {
   useEffect(() => {
     const bootSystem = async () => {
       await LocalNotifications.requestPermissions();
-      
-      // تحميل البيانات المحلية فوراً
       const localStock = await storage.load('stock');
       const localHistory = await storage.load('productionHistory');
-      
       if (localStock) setStock(localStock);
       if (localHistory) setProductionHistory(localHistory);
-
-      // محاولة تحديث البيانات من السحابة
       await fetchCloudData();
     };
     bootSystem();
   }, [fetchCloudData]);
-
-  // مراقبة التغييرات وحفظها
-  useEffect(() => {
-    if (stock.length > 0) {
-      storage.save('stock', stock);
-      syncData('stock', stock);
-    }
-  }, [stock]);
 
   useEffect(() => {
     if (productionHistory.length > 0) {
@@ -123,17 +130,14 @@ const App = () => {
   // --- 4. ذكاء الأعمال (Business Intelligence) ---
   const analyzeProduction = async (history) => {
     if (history.length < 3) return;
-    const lastThree = history.slice(0, 3).map(i => parseFloat(i.totalActualCost) || 0);
-    
-    // تنبيه "رقة" الذكي في حالة هبوط الإنتاج
+    const lastThree = history.slice(-3).map(i => parseFloat(i.totalActualCost) || 0);
     if (lastThree[0] < lastThree[1] && lastThree[1] < lastThree[2]) {
       await LocalNotifications.schedule({
         notifications: [{
           title: "🚀 تنبيه رقة الذكي",
           body: "تحليل ERP يشير لتراجع الإنتاج لـ 3 فترات متتالية. نحتاج مراجعة الخامات.",
           id: 77,
-          schedule: { at: new Date(Date.now() + 1000) },
-          extra: { type: 'alert' }
+          schedule: { at: new Date(Date.now() + 1000) }
         }]
       });
     }
@@ -141,10 +145,12 @@ const App = () => {
 
   const handleDelete = async (id, type) => {
     if (type === 'stock') {
-      setStock(prev => prev.filter(item => item.id !== id));
+      const updated = stock.filter(item => item.id !== id);
+      setStock(updated);
       await performDelete('stock', id);
     } else {
-      setProductionHistory(prev => prev.filter(item => item.id !== id));
+      const updated = productionHistory.filter(item => item.id !== id);
+      setProductionHistory(updated);
       await performDelete('productionData', id);
     }
   };
@@ -161,15 +167,13 @@ const App = () => {
 
   // --- 5. واجهة المستخدم (UI Layout) ---
   const pages = {
-    dashboard: <Dashboard setActivePage={setActivePage} productionHistory={productionHistory} stats={stats} />,
-    // هنا تم تمرير onSaveInventory لحل الخطأ البرمي
+    dashboard: <Dashboard setActivePage={setActivePage} productionHistory={productionHistory} stock={stock} stats={stats} />,
     inventory: <Inventory onBack={() => setActivePage('dashboard')} stock={stock} setStock={setStock} onDelete={handleDelete} onSaveInventory={handleSaveInventory} />,
     production: <ProductionManager onBack={() => setActivePage('dashboard')} stock={stock} setStock={setStock} onSaveProduction={(p) => setProductionHistory(prev => [p, ...prev])} />
   };
 
   return (
     <div style={{ direction: 'rtl', minHeight: '100vh', backgroundColor: '#f4f7fe' }}>
-      {/* مؤشر المزامنة العلوي */}
       {isSyncing && (
         <div style={{ position: 'fixed', top: 10, left: 10, zIndex: 1000, fontSize: '10px', color: '#2563eb' }}>
           🔄 جاري مزامنة ERP...
@@ -180,7 +184,6 @@ const App = () => {
         {pages[activePage] || pages.dashboard}
       </main>
 
-      {/* شريط التنقل الزجاجي (Glassmorphism Nav) */}
       <nav style={{
         position: 'fixed', bottom: '15px', left: '15px', right: '15px',
         height: '70px', backgroundColor: 'rgba(255, 255, 255, 0.8)',
@@ -197,11 +200,10 @@ const App = () => {
   );
 };
 
-// مكون زر التنقل الصغير
 const NavButton = ({ active, icon, label, onClick }) => (
   <button onClick={onClick} style={{
     border: 'none', background: 'none', display: 'flex', flexDirection: 'column',
-    alignItems: 'center', color: active ? '#2563eb' : '#94a3b8', transition: '0.3s'
+    alignItems: 'center', color: active ? '#2563eb' : '#94a3b8', transition: '0.3s', cursor: 'pointer'
   }}>
     <span style={{ fontSize: '20px' }}>{icon}</span>
     <span style={{ fontSize: '12px', fontWeight: active ? 'bold' : 'normal' }}>{label}</span>
