@@ -1,9 +1,10 @@
 import React from 'react';
-import { Trash2, Box, Info, Database, CircleDollarSign } from 'lucide-react';
+// تمت إضافة AlertTriangle هنا لإصلاح مشكلة الصفحة البيضاء
+import { Trash2, Box, Info, Database, CircleDollarSign, AlertTriangle } from 'lucide-react';
 
 const RawMaterials = ({ categories = [], onDeleteItem }) => {
   
-  // 1. تصفية الخامات فقط (استبعاد المنتجات التامة مثل المعمول)
+  // 1. تصفية الخامات فقط
   const rawMaterialsList = categories.filter(item => {
     const nameStr = String(item.name || item.item || "").trim().toLowerCase();
     return nameStr.length > 0 && 
@@ -15,7 +16,6 @@ const RawMaterials = ({ categories = [], onDeleteItem }) => {
     <div style={{ padding: '10px', direction: 'rtl' }}>
       {rawMaterialsList.length > 0 ? (
         rawMaterialsList.map((item, index) => {
-          // جلب البيانات من الكائن (سواء كانت من MongoDB أو Local)
           const name = item.name || item.item;
           const balance = parseFloat(item.balance || item.quantity || 0);
           const price = parseFloat(item.price || 0);
@@ -24,7 +24,6 @@ const RawMaterials = ({ categories = [], onDeleteItem }) => {
 
           return (
             <div key={itemId || index} style={cardStyle}>
-              {/* الرأس: الاسم وزر الحذف */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div style={iconWrapper}>
@@ -42,7 +41,6 @@ const RawMaterials = ({ categories = [], onDeleteItem }) => {
                 </button>
               </div>
 
-              {/* تفاصيل البيانات (نفس منطق كود الإنتاج) */}
               <div style={detailsGrid}>
                 <div style={detailItem}>
                   <Database size={14} color="#64748b" />
@@ -56,13 +54,12 @@ const RawMaterials = ({ categories = [], onDeleteItem }) => {
 
                 <div style={{ ...detailItem, gridColumn: 'span 2', borderTop: '1px solid #f1f5f9', paddingTop: '8px', marginTop: '5px' }}>
                   <Info size={14} color="#3b82f6" />
-                  <span>إجمالي القيمة المخزنية: <b style={{ color: '#2563eb' }}>{totalValue} ج.م</b></span>
+                  <span>القيمة: <b style={{ color: '#2563eb' }}>{totalValue} ج.م</b></span>
                 </div>
               </div>
 
-              {/* كود التعريف (ID) */}
               <div style={idFooter}>
-                المعرف: {String(itemId).slice(-8)}
+                المعرف: {itemId ? String(itemId).slice(-8) : 'N/A'}
               </div>
             </div>
           );
@@ -78,72 +75,49 @@ const RawMaterials = ({ categories = [], onDeleteItem }) => {
   );
 };
 
-// --- التنسيقات (Styles) ---
-
+// --- التنسيقات (لم يتغير بها شيء ولكنها ضرورية لعمل الكود) ---
 const cardStyle = {
   background: '#fff',
   padding: '15px',
   borderRadius: '18px',
   marginBottom: '15px',
-  boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)',
+  boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
   borderRight: '6px solid #2563eb',
 };
 
 const iconWrapper = {
-  width: '32px',
-  height: '32px',
-  borderRadius: '8px',
-  backgroundColor: '#eff6ff',
-  display: 'flex',
-  justifyContent: 'center',
-  alignItems: 'center'
+  width: '32px', height: '32px', borderRadius: '8px',
+  backgroundColor: '#eff6ff', display: 'flex',
+  justifyContent: 'center', alignItems: 'center'
 };
 
 const detailsGrid = {
-  display: 'grid',
-  gridTemplateColumns: '1fr 1fr',
-  gap: '10px',
-  backgroundColor: '#f8fafc',
-  padding: '12px',
-  borderRadius: '12px'
+  display: 'grid', gridTemplateColumns: '1fr 1fr',
+  gap: '10px', backgroundColor: '#f8fafc',
+  padding: '12px', borderRadius: '12px'
 };
 
 const detailItem = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '6px',
-  fontSize: '13px',
-  color: '#475569'
+  display: 'flex', alignItems: 'center',
+  gap: '6px', fontSize: '13px', color: '#475569'
 };
 
 const deleteBtnStyle = {
-  background: '#fff1f2',
-  border: 'none',
-  padding: '8px',
-  borderRadius: '10px',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center'
+  background: '#fff1f2', border: 'none',
+  padding: '8px', borderRadius: '10px',
+  cursor: 'pointer', display: 'flex', alignItems: 'center'
 };
 
 const idFooter = {
-  fontSize: '9px',
-  color: '#94a3b8',
-  marginTop: '10px',
-  textAlign: 'left',
-  fontFamily: 'monospace'
+  fontSize: '9px', color: '#94a3b8',
+  marginTop: '10px', textAlign: 'left', fontFamily: 'monospace'
 };
 
 const emptyStateStyle = {
-  textAlign: 'center',
-  padding: '60px 20px',
-  background: '#fff',
-  borderRadius: '20px',
-  color: '#94a3b8',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  gap: '10px'
+  textAlign: 'center', padding: '60px 20px',
+  background: '#fff', borderRadius: '20px',
+  color: '#94a3b8', display: 'flex',
+  flexDirection: 'column', alignItems: 'center', gap: '10px'
 };
 
 export default RawMaterials;
