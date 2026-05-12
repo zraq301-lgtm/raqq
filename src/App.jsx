@@ -34,16 +34,27 @@ const App = () => {
 
   // --- 2. نظام المزامنة الذكي (Cloud Bridge) ---
   
-  // دالة جلب البيانات الشاملة
+  // دالة جلب البيانات الشاملة (تم إصلاحها لجلب الخامات والإنتاج معاً)
   const fetchCloudData = useCallback(async () => {
     try {
-      const response = await CapacitorHttp.get({ 
+      // جلب بيانات الإنتاج
+      const resProd = await CapacitorHttp.get({ 
         url: `${API_CONFIG.GET}?collectionName=productionData` 
       });
-      if (response.data?.success) {
-        const data = response.data.data;
+      if (resProd.data?.success) {
+        const data = resProd.data.data;
         setProductionHistory(data);
         await storage.save('productionHistory', data);
+      }
+
+      // جلب بيانات المخزن (الخامات) لضمان ظهورها
+      const resStock = await CapacitorHttp.get({ 
+        url: `${API_CONFIG.GET}?collectionName=stock` 
+      });
+      if (resStock.data?.success) {
+        const sData = resStock.data.data;
+        setStock(sData);
+        await storage.save('stock', sData);
       }
     } catch (error) {
       console.warn("ERP Alert: نظام المزامنة يعمل في وضع الأوفلاين حالياً.");
@@ -66,13 +77,11 @@ const App = () => {
     }
   };
 
-  // --- التعديل هنا: دالة معالجة الإضافة الجديدة من قسم التوريد ---
+  // --- دالة معالجة الإضافة الجديدة من قسم التوريد ---
   const handleSaveInventory = async (newItem) => {
-    // تحديث الحالة بإضافة الصنف الجديد للمصفوفة الحالية
     const updatedStock = [...stock, newItem];
     setStock(updatedStock);
     
-    // حفظ محلي ومزامنة فورية
     await storage.save('stock', updatedStock);
     await syncData('stock', updatedStock);
   };
@@ -163,7 +172,6 @@ const App = () => {
   // --- 5. واجهة المستخدم (UI Layout) ---
   const pages = {
     dashboard: <Dashboard setActivePage={setActivePage} productionHistory={productionHistory} stats={stats} />,
-    // التعديل هنا: نمرر الدالة لمكون Inventory تحت اسم onInventoryEntry ليتوافق مع المكون الداخلي
     inventory: (
       <Inventory 
         onBack={() => setActivePage('dashboard')} 
