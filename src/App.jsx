@@ -34,7 +34,7 @@ const App = () => {
 
   // --- 2. نظام المزامنة الذكي (Cloud Bridge) ---
   
-  // دالة جلب البيانات الشاملة (تم إصلاحها لجلب الخامات والإنتاج معاً)
+  // دالة جلب البيانات الشاملة (معدلة لتوحيد مسميات الخامات لضمان العرض)
   const fetchCloudData = useCallback(async () => {
     try {
       // جلب بيانات الإنتاج
@@ -47,14 +47,23 @@ const App = () => {
         await storage.save('productionHistory', data);
       }
 
-      // جلب بيانات المخزن (الخامات) لضمان ظهورها
+      // جلب بيانات المخزن (الخامات) مع توحيد المسميات لضمان العرض في RawMaterials
       const resStock = await CapacitorHttp.get({ 
         url: `${API_CONFIG.GET}?collectionName=stock` 
       });
       if (resStock.data?.success) {
-        const sData = resStock.data.data;
-        setStock(sData);
-        await storage.save('stock', sData);
+        const rawSData = resStock.data.data;
+        
+        // توحيد البيانات: تحويل item إلى name و quantity إلى balance
+        const normalizedStock = rawSData.map(s => ({
+          ...s,
+          name: s.name || s.item || "صنف غير مسمى",
+          balance: s.balance || s.quantity || 0,
+          price: s.price || 0
+        }));
+
+        setStock(normalizedStock);
+        await storage.save('stock', normalizedStock);
       }
     } catch (error) {
       console.warn("ERP Alert: نظام المزامنة يعمل في وضع الأوفلاين حالياً.");
@@ -77,9 +86,17 @@ const App = () => {
     }
   };
 
-  // --- دالة معالجة الإضافة الجديدة من قسم التوريد ---
+  // --- دالة معالجة الإضافة الجديدة من قسم التوريد (معدلة لتوحيد البيانات فوراً) ---
   const handleSaveInventory = async (newItem) => {
-    const updatedStock = [...stock, newItem];
+    // توحيد مسمى الحقل الجديد ليظهر في RawMaterials فوراً
+    const formattedItem = {
+      ...newItem,
+      name: newItem.name || newItem.item,
+      balance: newItem.balance || newItem.quantity,
+      id: newItem.id || Date.now()
+    };
+
+    const updatedStock = [...stock, formattedItem];
     setStock(updatedStock);
     
     await storage.save('stock', updatedStock);
@@ -163,9 +180,9 @@ const App = () => {
     const totalProduction = productionHistory.reduce((s, p) => s + (parseFloat(p.totalActualCost) || 0), 0);
     return {
       totalItems: stock.length,
-      lowStock: stock.filter(i => (i.balance || 0) < 5).length,
+      lowStock: stock.filter(i => (parseFloat(i.balance) || 0) < 5).length,
       financialValue: totalProduction.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' }),
-      inventoryWorth: stock.reduce((s, i) => s + ((i.balance || 0) * (i.price || 0)), 0).toFixed(2)
+      inventoryWorth: stock.reduce((s, i) => s + ((parseFloat(i.balance) || 0) * (parseFloat(i.price) || 0)), 0).toFixed(2)
     };
   }, [stock, productionHistory]);
 
