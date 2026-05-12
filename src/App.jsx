@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Preferences } from '@capacitor/preferences';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { CapacitorHttp, Capacitor } from '@capacitor/core'; // إضافة Capacitor للتحقق من المنصة
+import { CapacitorHttp, Capacitor } from '@capacitor/core';
 import { App as AppLauncher } from '@capacitor/app';
 import Swal from 'sweetalert2';
 
@@ -27,7 +27,7 @@ const App = () => {
   const storage = {
     save: async (key, data) => {
       await Preferences.set({ key, value: JSON.stringify(data) });
-      localStorage.setItem(key, JSON.stringify(data)); // نسخة احتياطية للمتصفح
+      localStorage.setItem(key, JSON.stringify(data)); // نسخة احتياطية
     },
     load: async (key) => {
       const { value } = await Preferences.get({ key });
@@ -51,22 +51,26 @@ const App = () => {
   
   const fetchCloudData = useCallback(async () => {
     try {
-      // جلب بيانات الإنتاج
+      // 1. جلب بيانات الإنتاج
       const resProd = await CapacitorHttp.get({ url: `${API_CONFIG.GET}?collectionName=productionData` });
-      const prodData = typeof resProd.data === 'string' ? JSON.parse(resProd.data) : resProd.data;
-      if (prodData?.success) {
-        setProductionHistory(prodData.data);
-        await storage.save('productionHistory', prodData.data);
+      let prodResponse = typeof resProd.data === 'string' ? JSON.parse(resProd.data) : resProd.data;
+      if (prodResponse?.success && prodResponse.data) {
+        setProductionHistory(prodResponse.data);
+        await storage.save('productionHistory', prodResponse.data);
       }
 
-      // جلب بيانات المخزن مع تطبيق منطق التوحيد (Normalization)
+      // 2. جلب بيانات المخزن (تم تعديل الدخول للمصفوفة هنا)
       const resStock = await CapacitorHttp.get({ url: `${API_CONFIG.GET}?collectionName=stock` });
-      const stockData = typeof resStock.data === 'string' ? JSON.parse(resStock.data) : resStock.data;
+      let stockResponse = typeof resStock.data === 'string' ? JSON.parse(resStock.data) : resStock.data;
       
-      if (stockData?.success && Array.isArray(stockData.data)) {
-        const normalizedStock = stockData.data.map(s => ({
+      // التعديل الجوهري: الوصول لـ stockResponse.data لأن الصورة أظهرت أن البيانات بداخلها
+      const rawItems = stockResponse.data || [];
+
+      if (stockResponse?.success && Array.isArray(rawItems)) {
+        const normalizedStock = rawItems.map(s => ({
           ...s,
-          id: s.id || s._id || Date.now() + Math.random(),
+          // استخدام _id القادم من MongoDB كـ id أساسي
+          id: s.id || s._id || (Date.now() + Math.random()),
           name: s.name || s.item || "صنف غير مسمى",
           balance: parseFloat(s.balance || s.quantity || 0),
           price: parseFloat(s.price || 0)
@@ -134,6 +138,8 @@ const App = () => {
       const localHistory = await storage.load('productionHistory');
       if (localStock) setStock(localStock);
       if (localHistory) setProductionHistory(localHistory);
+      
+      // جلب أحدث البيانات من السحاب
       await fetchCloudData();
     };
     bootSystem();
@@ -156,10 +162,10 @@ const App = () => {
 
   const handleDelete = async (id, type) => {
     if (type === 'stock') {
-      setStock(prev => prev.filter(item => item.id !== id));
+      setStock(prev => prev.filter(item => (item.id !== id && item._id !== id)));
       await performDelete('stock', id);
     } else {
-      setProductionHistory(prev => prev.filter(item => item.id !== id));
+      setProductionHistory(prev => prev.filter(item => (item.id !== id && item._id !== id)));
       await performDelete('productionData', id);
     }
   };
