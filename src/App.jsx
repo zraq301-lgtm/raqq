@@ -66,9 +66,13 @@ const App = () => {
     }
   };
 
-  // دالة الحفظ الجديدة لمعالجة توريد المخزن (تمت إضافتها لحل مشكلة الصورة)
-  const handleSaveInventory = async (updatedStock) => {
+  // --- التعديل هنا: دالة معالجة الإضافة الجديدة من قسم التوريد ---
+  const handleSaveInventory = async (newItem) => {
+    // تحديث الحالة بإضافة الصنف الجديد للمصفوفة الحالية
+    const updatedStock = [...stock, newItem];
     setStock(updatedStock);
+    
+    // حفظ محلي ومزامنة فورية
     await storage.save('stock', updatedStock);
     await syncData('stock', updatedStock);
   };
@@ -91,14 +95,12 @@ const App = () => {
     const bootSystem = async () => {
       await LocalNotifications.requestPermissions();
       
-      // تحميل البيانات المحلية فوراً
       const localStock = await storage.load('stock');
       const localHistory = await storage.load('productionHistory');
       
       if (localStock) setStock(localStock);
       if (localHistory) setProductionHistory(localHistory);
 
-      // محاولة تحديث البيانات من السحابة
       await fetchCloudData();
     };
     bootSystem();
@@ -125,7 +127,6 @@ const App = () => {
     if (history.length < 3) return;
     const lastThree = history.slice(0, 3).map(i => parseFloat(i.totalActualCost) || 0);
     
-    // تنبيه "رقة" الذكي في حالة هبوط الإنتاج
     if (lastThree[0] < lastThree[1] && lastThree[1] < lastThree[2]) {
       await LocalNotifications.schedule({
         notifications: [{
@@ -162,14 +163,21 @@ const App = () => {
   // --- 5. واجهة المستخدم (UI Layout) ---
   const pages = {
     dashboard: <Dashboard setActivePage={setActivePage} productionHistory={productionHistory} stats={stats} />,
-    // هنا تم تمرير onSaveInventory لحل الخطأ البرمي
-    inventory: <Inventory onBack={() => setActivePage('dashboard')} stock={stock} setStock={setStock} onDelete={handleDelete} onSaveInventory={handleSaveInventory} />,
+    // التعديل هنا: نمرر الدالة لمكون Inventory تحت اسم onInventoryEntry ليتوافق مع المكون الداخلي
+    inventory: (
+      <Inventory 
+        onBack={() => setActivePage('dashboard')} 
+        stock={stock} 
+        setStock={setStock} 
+        onDelete={handleDelete} 
+        onInventoryEntry={handleSaveInventory} 
+      />
+    ),
     production: <ProductionManager onBack={() => setActivePage('dashboard')} stock={stock} setStock={setStock} onSaveProduction={(p) => setProductionHistory(prev => [p, ...prev])} />
   };
 
   return (
     <div style={{ direction: 'rtl', minHeight: '100vh', backgroundColor: '#f4f7fe' }}>
-      {/* مؤشر المزامنة العلوي */}
       {isSyncing && (
         <div style={{ position: 'fixed', top: 10, left: 10, zIndex: 1000, fontSize: '10px', color: '#2563eb' }}>
           🔄 جاري مزامنة ERP...
@@ -180,7 +188,6 @@ const App = () => {
         {pages[activePage] || pages.dashboard}
       </main>
 
-      {/* شريط التنقل الزجاجي (Glassmorphism Nav) */}
       <nav style={{
         position: 'fixed', bottom: '15px', left: '15px', right: '15px',
         height: '70px', backgroundColor: 'rgba(255, 255, 255, 0.8)',
@@ -197,7 +204,6 @@ const App = () => {
   );
 };
 
-// مكون زر التنقل الصغير
 const NavButton = ({ active, icon, label, onClick }) => (
   <button onClick={onClick} style={{
     border: 'none', background: 'none', display: 'flex', flexDirection: 'column',
