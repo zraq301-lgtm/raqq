@@ -1,172 +1,203 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Preferences } from '@capacitor/preferences';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { CapacitorHttp, Capacitor } from '@capacitor/core';
+import { CapacitorHttp } from '@capacitor/core';
 import Swal from 'sweetalert2';
 
-// استيراد المكونات
+// استيراد المكونات الأساسية للنظام
 import Dashboard from './components/Dashboard';
 import Inventory from './components/Inventory';
 import ProductionManager from './components/ProductionManager';
 
-const API_BASE = 'https://maamoul-pro-five.vercel.app/api';
+// إعدادات الروابط الموحدة لنظام معمول ERP
+const API_CONFIG = {
+  BASE: 'https://maamoul-one.vercel.app/api',
+  SYNC: 'https://maamoul-one.vercel.app/api/sync',
+  GET: 'https://maamoul-one.vercel.app/api/get-data',
+  DELETE: 'https://maamoul-one.vercel.app/api/delete-item'
+};
 
 const App = () => {
   const [activePage, setActivePage] = useState('dashboard');
   const [stock, setStock] = useState([]);
   const [productionHistory, setProductionHistory] = useState([]);
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  // --- 1. استقرار البيانات (Preferences API) ---
-  const saveData = async (key, value) => {
-    await Preferences.set({ key, value: JSON.stringify(value) });
+  // --- 1. المحرك المحلي (Offline-First Engine) ---
+  const storage = {
+    save: async (key, data) => await Preferences.set({ key, value: JSON.stringify(data) }),
+    load: async (key) => {
+      const { value } = await Preferences.get({ key });
+      return value ? JSON.parse(value) : null;
+    }
   };
 
-  const loadData = async (key) => {
-    const { value } = await Preferences.get({ key });
-    return value ? JSON.parse(value) : null;
+  // --- 2. نظام المزامنة الذكي (Cloud Bridge) ---
+  
+  // دالة جلب البيانات الشاملة
+  const fetchCloudData = useCallback(async () => {
+    try {
+      const response = await CapacitorHttp.get({ 
+        url: `${API_CONFIG.GET}?collectionName=productionData` 
+      });
+      if (response.data?.success) {
+        const data = response.data.data;
+        setProductionHistory(data);
+        await storage.save('productionHistory', data);
+      }
+    } catch (error) {
+      console.warn("ERP Alert: نظام المزامنة يعمل في وضع الأوفلاين حالياً.");
+    }
+  }, []);
+
+  // دالة الحفظ والمزامنة (ERP Push)
+  const syncData = async (collection, data) => {
+    setIsSyncing(true);
+    try {
+      await CapacitorHttp.post({
+        url: API_CONFIG.SYNC,
+        headers: { 'Content-Type': 'application/json' },
+        data: { collectionName: collection, data }
+      });
+    } catch (error) {
+      console.error("Sync Error:", error);
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
-  // --- 2. نظام الإشعارات الذكي (AI-Informed Notifications) ---
-  const checkProductionTrend = async (history) => {
+  // دالة الحذف النهائي (ERP Purge)
+  const performDelete = async (collection, id) => {
+    try {
+      await CapacitorHttp.post({
+        url: API_CONFIG.DELETE,
+        headers: { 'Content-Type': 'application/json' },
+        data: { collectionName: collection, id }
+      });
+    } catch (error) {
+      Swal.fire('خطأ مزامنة', 'سيتم الحذف محلياً والمحاولة لاحقاً سحابياً', 'warning');
+    }
+  };
+
+  // --- 3. دورة حياة النظام (System Lifecycle) ---
+  useEffect(() => {
+    const bootSystem = async () => {
+      await LocalNotifications.requestPermissions();
+      
+      // تحميل البيانات المحلية فوراً
+      const localStock = await storage.load('stock');
+      const localHistory = await storage.load('productionHistory');
+      
+      if (localStock) setStock(localStock);
+      if (localHistory) setProductionHistory(localHistory);
+
+      // محاولة تحديث البيانات من السحابة
+      await fetchCloudData();
+    };
+    bootSystem();
+  }, [fetchCloudData]);
+
+  // مراقبة التغييرات وحفظها
+  useEffect(() => {
+    if (stock.length > 0) {
+      storage.save('stock', stock);
+      syncData('stock', stock);
+    }
+  }, [stock]);
+
+  useEffect(() => {
+    if (productionHistory.length > 0) {
+      storage.save('productionHistory', productionHistory);
+      syncData('productionData', productionHistory);
+      analyzeProduction(productionHistory);
+    }
+  }, [productionHistory]);
+
+  // --- 4. ذكاء الأعمال (Business Intelligence) ---
+  const analyzeProduction = async (history) => {
     if (history.length < 3) return;
-
-    // الحصول على آخر 3 مدخلات إنتاج
-    const last3Days = history.slice(0, 3).map(p => parseFloat(p.totalActualCost) || 0);
+    const lastThree = history.slice(0, 3).map(i => parseFloat(i.totalActualCost) || 0);
     
-    // منطق الذكاء: إذا كان اليوم الثالث أقل من الثاني، والثاني أقل من الأول
-    if (last3Days[0] < last3Days[1] && last3Days[1] < last3Days[2]) {
+    // تنبيه "رقة" الذكي في حالة هبوط الإنتاج
+    if (lastThree[0] < lastThree[1] && lastThree[1] < lastThree[2]) {
       await LocalNotifications.schedule({
         notifications: [{
-          title: "⚠️ تنبيه ذكي: تراجع الإنتاج",
-          body: `لاحظ نظام "راق" هبوطاً مستمراً في الإنتاج لـ 3 أيام. يرجى مراجعة الخامات أو كفاءة الورديات.`,
-          id: 1,
+          title: "🚀 تنبيه رقة الذكي",
+          body: "تحليل ERP يشير لتراجع الإنتاج لـ 3 فترات متتالية. نحتاج مراجعة الخامات.",
+          id: 77,
           schedule: { at: new Date(Date.now() + 1000) },
-          sound: 'beep.wav'
+          extra: { type: 'alert' }
         }]
       });
     }
   };
 
-  // --- 3. منطق الاتصال الخارجي (CapacitorHttp) ---
-  const syncWithCloud = async (collectionName, data) => {
-    if (!data || data.length === 0) return;
-    try {
-      await CapacitorHttp.post({
-        url: `${API_BASE}/sync`,
-        headers: { 'Content-Type': 'application/json' },
-        data: { collectionName, data }
-      });
-    } catch (error) {
-      console.error("Cloud sync failed:", error);
+  const handleDelete = async (id, type) => {
+    if (type === 'stock') {
+      setStock(prev => prev.filter(item => item.id !== id));
+      await performDelete('stock', id);
+    } else {
+      setProductionHistory(prev => prev.filter(item => item.id !== id));
+      await performDelete('productionData', id);
     }
   };
 
-  // تحميل البيانات عند البداية
-  useEffect(() => {
-    const init = async () => {
-      // طلب إذن الإشعارات
-      await LocalNotifications.requestPermissions();
-      
-      const savedStock = await loadData('stock');
-      if (savedStock) setStock(savedStock);
-
-      const savedHistory = await loadData('productionHistory');
-      if (savedHistory) setProductionHistory(savedHistory);
-
-      // جلب البيانات من السيرفر لتحديث المحلي
-      try {
-        const response = await CapacitorHttp.get({ 
-          url: `${API_BASE}/get-data?collectionName=productionData` 
-        });
-        if (response.data?.success) {
-          const cloudData = response.data.data;
-          setProductionHistory(cloudData);
-          await saveData('productionHistory', cloudData);
-        }
-      } catch (e) { console.log("Offline mode: Using cached data"); }
-    };
-    init();
-  }, []);
-
-  // حفظ ومزامنة البيانات عند التغيير
-  useEffect(() => {
-    if (stock.length > 0) {
-      saveData('stock', stock);
-      syncWithCloud('stock', stock);
-    }
-    if (productionHistory.length > 0) {
-      saveData('productionHistory', productionHistory);
-      syncWithCloud('productionData', productionHistory);
-      checkProductionTrend(productionHistory); // فحص تريند الإنتاج
-    }
-  }, [stock, productionHistory]);
-
-  // --- 4. الحسابات والذكاء المالي ---
   const stats = useMemo(() => {
-    const totalCost = productionHistory.reduce((sum, p) => sum + (parseFloat(p.totalActualCost) || 0), 0);
+    const totalProduction = productionHistory.reduce((s, p) => s + (parseFloat(p.totalActualCost) || 0), 0);
     return {
       totalItems: stock.length,
-      lowStockAlert: stock.filter(item => (item.balance || 0) < 10).length,
-      totalProductionValue: totalCost.toFixed(2),
-      stockValue: stock.reduce((sum, s) => sum + ((s.balance || 0) * (s.price || 0)), 0).toFixed(2),
+      lowStock: stock.filter(i => (i.balance || 0) < 5).length,
+      financialValue: totalProduction.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' }),
+      inventoryWorth: stock.reduce((s, i) => s + ((i.balance || 0) * (i.price || 0)), 0).toFixed(2)
     };
   }, [stock, productionHistory]);
 
-  const handleSaveProduction = (newProd) => {
-    setProductionHistory(prev => [newProd, ...prev]);
-    Swal.fire({
-      title: 'تم الحفظ',
-      text: 'تم ترحيل الإنتاج للمخزن ومزامنة السحابة',
-      icon: 'success',
-      toast: true,
-      position: 'top-end',
-      timer: 2000,
-      showConfirmButton: false
-    });
-  };
-
-  const renderPage = () => {
-    const common = { onBack: () => setActivePage('dashboard') };
-    switch (activePage) {
-      case 'dashboard': 
-        return <Dashboard 
-                  setActivePage={setActivePage} 
-                  productionHistory={productionHistory} 
-                  stats={stats} 
-               />;
-      case 'inventory': 
-        return <Inventory {...common} stock={stock} setStock={setStock} />;
-      case 'production': 
-        return <ProductionManager {...common} stock={stock} setStock={setStock} onSaveProduction={handleSaveProduction} />;
-      default: 
-        return <Dashboard setActivePage={setActivePage} productionHistory={productionHistory} />;
-    }
+  // --- 5. واجهة المستخدم (UI Layout) ---
+  const pages = {
+    dashboard: <Dashboard setActivePage={setActivePage} productionHistory={productionHistory} stats={stats} />,
+    inventory: <Inventory onBack={() => setActivePage('dashboard')} stock={stock} setStock={setStock} onDelete={handleDelete} />,
+    production: <ProductionManager onBack={() => setActivePage('dashboard')} stock={stock} setStock={setStock} onSaveProduction={(p) => setProductionHistory(prev => [p, ...prev])} />
   };
 
   return (
-    <div className="app-container" style={{ direction: 'rtl', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
-      <main className="main-content" style={{ paddingBottom: '80px' }}>
-        {renderPage()}
+    <div style={{ direction: 'rtl', minHeight: '100vh', backgroundColor: '#f4f7fe' }}>
+      {/* مؤشر المزامنة العلوي */}
+      {isSyncing && (
+        <div style={{ position: 'fixed', top: 10, left: 10, zIndex: 1000, fontSize: '10px', color: '#2563eb' }}>
+          🔄 جاري مزامنة ERP...
+        </div>
+      )}
+
+      <main style={{ padding: '16px', paddingBottom: '100px' }}>
+        {pages[activePage] || pages.dashboard}
       </main>
 
-      {/* Nav السفلي */}
-      <nav className="bottom-nav" style={{
-        position: 'fixed', bottom: 0, width: '100%', backgroundColor: '#fff', 
-        display: 'flex', justifyContent: 'space-around', padding: '10px 0',
-        boxShadow: '0 -2px 10px rgba(0,0,0,0.05)', borderTop: '1px solid #e2e8f0'
+      {/* شريط التنقل الزجاجي (Glassmorphism Nav) */}
+      <nav style={{
+        position: 'fixed', bottom: '15px', left: '15px', right: '15px',
+        height: '70px', backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        backdropFilter: 'blur(15px)', borderRadius: '25px',
+        display: 'flex', justifyContent: 'space-around', alignItems: 'center',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.1)', border: '1px solid rgba(255,255,255,0.3)',
+        zIndex: 1000
       }}>
-        <button onClick={() => setActivePage('dashboard')} style={{ border: 'none', background: 'none', color: activePage === 'dashboard' ? '#e67e22' : '#64748b' }}>
-          <div style={{ textAlign: 'center' }}>الرئيسية</div>
-        </button>
-        <button onClick={() => setActivePage('production')} style={{ border: 'none', background: 'none', color: activePage === 'production' ? '#e67e22' : '#64748b' }}>
-          <div style={{ textAlign: 'center' }}>الإنتاج</div>
-        </button>
-        <button onClick={() => setActivePage('inventory')} style={{ border: 'none', background: 'none', color: activePage === 'inventory' ? '#e67e22' : '#64748b' }}>
-          <div style={{ textAlign: 'center' }}>المخزن</div>
-        </button>
+        <NavButton active={activePage === 'dashboard'} icon="📊" label="الرئيسية" onClick={() => setActivePage('dashboard')} />
+        <NavButton active={activePage === 'production'} icon="🏭" label="الإنتاج" onClick={() => setActivePage('production')} />
+        <NavButton active={activePage === 'inventory'} icon="📦" label="المخزن" onClick={() => setActivePage('inventory')} />
       </nav>
     </div>
   );
 };
+
+// مكون زر التنقل الصغير
+const NavButton = ({ active, icon, label, onClick }) => (
+  <button onClick={onClick} style={{
+    border: 'none', background: 'none', display: 'flex', flexDirection: 'column',
+    alignItems: 'center', color: active ? '#2563eb' : '#94a3b8', transition: '0.3s'
+  }}>
+    <span style={{ fontSize: '20px' }}>{icon}</span>
+    <span style={{ fontSize: '12px', fontWeight: active ? 'bold' : 'normal' }}>{label}</span>
+  </button>
+);
 
 export default App;
