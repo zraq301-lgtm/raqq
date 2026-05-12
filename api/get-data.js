@@ -1,4 +1,20 @@
-import clientPromise from "../lib/mongodb.js";
+import { MongoClient } from "mongodb";
+
+// استخدام المتغير المطلوب للاتصال
+const uri = process.env.MONGODB_URI;
+let client;
+let clientPromise;
+
+if (!uri) {
+    throw new Error("الرجاء إضافة MONGODB_URI إلى إعدادات البيئة (Environment Variables)");
+}
+
+// إعداد الاتصال لضمان استقرار الأداء في بيئة Serverless
+if (!global._mongoClientPromise) {
+    client = new MongoClient(uri);
+    global._mongoClientPromise = client.connect();
+}
+clientPromise = global._mongoClientPromise;
 
 export default async function handler(request, response) {
     // إعدادات الوصول CORS
@@ -24,7 +40,7 @@ export default async function handler(request, response) {
             return response.status(400).json({ error: 'يجب تحديد اسم القسم المراد جلبه' });
         }
 
-        // جلب البيانات
+        // جلب البيانات من قاعدة بيانات معمول
         const data = await db.collection(collectionName).find({}).toArray();
 
         return response.status(200).json({
