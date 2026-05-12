@@ -1,6 +1,23 @@
-import clientPromise from "../lib/mongodb.js";
+import { MongoClient } from "mongodb";
+
+// استخدام المتغير المباشر للاتصال
+const uri = process.env.MONGODB_URI;
+let client;
+let clientPromise;
+
+if (!uri) {
+    throw new Error("الرجاء إضافة MONGODB_URI إلى إعدادات البيئة (Environment Variables)");
+}
+
+// تهيئة الاتصال لبيئة Serverless
+if (!global._mongoClientPromise) {
+    client = new MongoClient(uri);
+    global._mongoClientPromise = client.connect();
+}
+clientPromise = global._mongoClientPromise;
 
 export default async function handler(request, response) {
+    // إعدادات CORS
     response.setHeader('Access-Control-Allow-Origin', '*');
     response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -13,14 +30,13 @@ export default async function handler(request, response) {
         const db = client.db("maamoul_db");
         const { collectionName, data } = request.body;
 
-        // التحقق من وجود البيانات الأساسية
+        // التحقق من وجود البيانات
         if (!collectionName || data === undefined || data === null) {
             return response.status(400).json({ error: 'بيانات ناقصة' });
         }
 
         if (Array.isArray(data)) {
-            // --- علاج الخطأ الرئيسي هنا ---
-            // إذا كانت المصفوفة فارغة، ننهي الطلب بنجاح دون إرسال شيء لقاعدة البيانات
+            // التعامل مع المصفوفات الفارغة لمنع خطأ bulkWrite
             if (data.length === 0) {
                 return response.status(200).json({ 
                     success: true, 
@@ -46,12 +62,11 @@ export default async function handler(request, response) {
                 };
             });
 
-            // الآن استدعاء bulkWrite آمن لأننا تأكدنا أن data.length > 0
             const result = await db.collection(collectionName).bulkWrite(operations);
             return response.status(200).json({ success: true, result });
 
         } else {
-            // التعامل مع عنصر واحد (Object)
+            // التعامل مع كائن واحد فقط (Single Object)
             const { _id, ...cleanData } = data;
             
             const result = await db.collection(collectionName).updateOne(
