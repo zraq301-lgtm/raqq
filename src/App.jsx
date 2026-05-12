@@ -31,7 +31,11 @@ const App = () => {
     },
     load: async (key) => {
       const { value } = await Preferences.get({ key });
-      return value ? JSON.parse(value) : JSON.parse(localStorage.getItem(key) || 'null');
+      try {
+        return value ? JSON.parse(value) : JSON.parse(localStorage.getItem(key) || 'null');
+      } catch (e) {
+        return null;
+      }
     }
   };
 
@@ -47,10 +51,10 @@ const App = () => {
     return () => { backHandler.then(h => h.remove()); };
   }, [activePage]);
 
-  // --- 2. نظام المزامنة والتوحيد (Normalization Logic) ---
+  // --- 2. نظام المزامنة والتوحيد ---
   const fetchCloudData = useCallback(async () => {
     try {
-      // 1. جلب بيانات الإنتاج
+      // جلب بيانات الإنتاج
       const resProd = await CapacitorHttp.get({ url: `${API_CONFIG.GET}?collectionName=productionData` });
       let prodResponse = typeof resProd.data === 'string' ? JSON.parse(resProd.data) : resProd.data;
       if (prodResponse?.success && prodResponse.data) {
@@ -58,7 +62,7 @@ const App = () => {
         await storage.save('productionHistory', prodResponse.data);
       }
 
-      // 2. جلب بيانات المخزن
+      // جلب بيانات المخزن
       const resStock = await CapacitorHttp.get({ url: `${API_CONFIG.GET}?collectionName=stock` });
       let stockResponse = typeof resStock.data === 'string' ? JSON.parse(resStock.data) : resStock.data;
       
@@ -77,7 +81,7 @@ const App = () => {
         await storage.save('stock', normalizedStock);
       }
     } catch (error) {
-      console.warn("ERP Alert: فشل الجلب السحابي، يعمل النظام محلياً.");
+      console.warn("ERP Alert: جاري العمل بالبيانات المحلية.");
     }
   }, []);
 
@@ -97,7 +101,6 @@ const App = () => {
     }
   };
 
-  // --- معالجة الحفظ الموحد ---
   const handleSaveInventory = async (newItem) => {
     const formattedItem = {
       ...newItem,
@@ -113,15 +116,25 @@ const App = () => {
     await syncData('stock', updatedStock);
   };
 
-  const performDelete = async (collection, id) => {
-    try {
-      await CapacitorHttp.post({
-        url: API_CONFIG.DELETE,
-        headers: { 'Content-Type': 'application/json' },
-        data: { collectionName: collection, id }
-      });
-    } catch (error) {
-      console.warn("تم الحذف محلياً فقط");
+  const handleDelete = async (id, type) => {
+    if (type === 'stock') {
+      setStock(prev => prev.filter(item => (item.id !== id && item._id !== id)));
+      try {
+        await CapacitorHttp.post({
+          url: API_CONFIG.DELETE,
+          headers: { 'Content-Type': 'application/json' },
+          data: { collectionName: 'stock', id }
+        });
+      } catch (e) {}
+    } else {
+      setProductionHistory(prev => prev.filter(item => (item.id !== id && item._id !== id)));
+      try {
+        await CapacitorHttp.post({
+          url: API_CONFIG.DELETE,
+          headers: { 'Content-Type': 'application/json' },
+          data: { collectionName: 'productionData', id }
+        });
+      } catch (e) {}
     }
   };
 
@@ -141,16 +154,6 @@ const App = () => {
     bootSystem();
   }, [fetchCloudData]);
 
-  const handleDelete = async (id, type) => {
-    if (type === 'stock') {
-      setStock(prev => prev.filter(item => (item.id !== id && item._id !== id)));
-      await performDelete('stock', id);
-    } else {
-      setProductionHistory(prev => prev.filter(item => (item.id !== id && item._id !== id)));
-      await performDelete('productionData', id);
-    }
-  };
-
   const stats = useMemo(() => {
     const totalProduction = productionHistory.reduce((s, p) => s + (parseFloat(p.totalActualCost) || 0), 0);
     return {
@@ -161,7 +164,8 @@ const App = () => {
     };
   }, [stock, productionHistory]);
 
-  // --- 4. واجهة المستخدم (مع ضبط التمرير لـ Dashboard) ---
+  // --- 4. توجيه الصفحات ---
+  // ملاحظة: Dashboard سيقوم بطلب setActivePage('inventory') للدخول لصفحة الخامات
   const pages = {
     dashboard: (
       <Dashboard 
