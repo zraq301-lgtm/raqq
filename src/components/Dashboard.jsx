@@ -37,7 +37,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [] }) => {
     });
   };
 
-  // --- وظيفة التحليل بالذكاء الاصطناعي (رقة AI) ---
+  // --- وظيفة التحليل بالذكاء الاصطناعي (تحليل معمول AI) ---
   const analyzeWithAI = async () => {
     setIsAiLoading(true);
     try {
@@ -59,14 +59,15 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [] }) => {
       const aiMessage = response.data?.message || "لم أستطع تحليل البيانات حالياً.";
 
       Swal.fire({
-        title: '🤖 تحليل رقة الذكي',
+        // تم تعديل العنوان هنا كما طلبت
+        title: '🤖 تحليل معمول الذكي',
         text: aiMessage,
         icon: 'success',
         confirmButtonText: 'فهمت',
         customClass: { popup: 'font-tajawal' }
       });
     } catch (error) {
-      Swal.fire('خطأ', 'فشل الاتصال بمحرك رقة الذكي', 'error');
+      Swal.fire('خطأ', 'فشل الاتصال بمحرك معمول الذكي', 'error');
     } finally {
       setIsAiLoading(false);
     }
@@ -89,7 +90,6 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [] }) => {
           <p style={{ color: '#7f8c8d', fontSize: '14px' }}>مرتقبة البيانات الذكية</p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          {/* تم تعديل اسم الزر هنا إلى محلل AI */}
           <button 
             onClick={analyzeWithAI}
             disabled={isAiLoading}
