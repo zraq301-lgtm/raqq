@@ -25,7 +25,6 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
       updatedProducts[index][field] = value;
       setFormData(prev => ({ ...prev, products: updatedProducts }));
     } else {
-      // التعامل مع الحقول العامة مثل التاريخ، الوردية، والهالك
       setFormData(prev => ({ ...prev, [field]: value }));
     }
   };
@@ -43,7 +42,6 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
   };
 
   const handleProcessProduction = () => {
-    // التأكد من وجود وظائف الحفظ لتجنب انهيار الكود
     if (!onSaveProduction || !setStock) {
       console.error("Missing required functions (onSaveProduction or setStock)");
       return;
@@ -85,7 +83,7 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
       }
     }
 
-    // 2. توزيع التكلفة
+    // 2. توزيع التكلفة وتحديث المنتجات
     const totalProductionUnits = formData.products.reduce((sum, p) => sum + (parseFloat(p.quantity) || 0), 0);
     const costPerGeneralUnit = totalProductionUnits > 0 ? (totalActualCost / totalProductionUnits) : 0;
 
@@ -103,6 +101,8 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
         if (!productInStock.batches) productInStock.batches = [];
         productInStock.batches.push(newBatch);
         productInStock.balance = (productInStock.balance || 0) + parseFloat(prod.quantity);
+        // تأكد من تحديث النوع لضمان ظهوره في صفحة المنتجات
+        productInStock.type = 'finished'; 
       } else {
         updatedStock.push({
           id: Date.now() + Math.random(),
@@ -110,13 +110,16 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
           balance: parseFloat(prod.quantity),
           unit: 'كرتونة',
           batches: [newBatch],
-          price: costPerGeneralUnit
+          price: costPerGeneralUnit,
+          type: 'finished' // هذا هو السطر المفتاح لظهور المنتج في الواجهة الصحيحة
         });
       }
     });
 
+    // تحديث الحالة في App
     setStock(updatedStock);
     
+    // إرسال البيانات لسجل الإنتاج لظهورها في لوحة التحكم
     onSaveProduction({ 
       ...formData, 
       totalActualCost: totalActualCost.toFixed(2), 
@@ -140,7 +143,7 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
 
   return (
     <div className="production-manager" style={{ direction: 'rtl', padding: '15px', backgroundColor: '#f8fafd', minHeight: '100vh' }}>
-      {/* الهيدر */}
+      {/* رأس الصفحة */}
       <div style={{ backgroundColor: '#fff', borderRadius: '20px', padding: '20px', marginBottom: '15px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h2 style={{ margin: 0, color: '#1e293b' }}>تشغيل الإنتاج</h2>
@@ -154,7 +157,7 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
         </div>
       </div>
 
-      {/* الخامات */}
+      {/* مدخلات الخامات */}
       <div style={{ backgroundColor: '#fff', borderRadius: '20px', padding: '15px', marginBottom: '15px' }}>
         <h3 style={{ color: '#64748b', fontSize: '16px', marginBottom: '10px' }}>الخامات المستهلكة</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
@@ -177,7 +180,7 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
         </div>
       </div>
 
-      {/* المنتجات النهائية */}
+      {/* المنتجات المستهدفة */}
       <div style={{ backgroundColor: '#1e293b', borderRadius: '20px', padding: '20px', color: '#fff' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
           <h3 style={{ margin: 0, color: '#f59e0b' }}>المنتج التام</h3>
