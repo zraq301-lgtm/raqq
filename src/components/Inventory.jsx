@@ -1,41 +1,28 @@
 import React, { useState } from 'react';
 import { Package, Truck, Archive } from 'lucide-react';
 
-// تم تعديل المسارات هنا لتصبح بحروف صغيرة (page) لتطابق المسار الفعلي
 import RawMaterials from './page/RawMaterials';
 import SupplyEntry from './page/SupplyEntry';
 import FinishedProducts from './page/FinishedProducts';
 
-const Inventory = ({ categories = [], onDeleteItem, onInventoryEntry }) => {
+// التعديل الجوهري: استلام stock بدلاً من categories ليطابق App.jsx
+const Inventory = ({ stock = [], onDelete, onInventoryEntry }) => {
   const [activeTab, setActiveTab] = useState('raw');
+
+  // ضمان أننا نتعامل مع مصفوفة دائماً
+  const dataList = Array.isArray(stock) ? stock : [];
 
   const styles = {
     container: { padding: '15px', direction: 'rtl', backgroundColor: '#f0f4f8', minHeight: '100vh' },
     tabContainer: { 
-      display: 'flex', 
-      background: '#fff', 
-      borderRadius: '20px', 
-      padding: '8px', 
-      marginBottom: '20px', 
-      boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-      position: 'sticky',
-      top: '10px',
-      zIndex: 10
+      display: 'flex', background: '#fff', borderRadius: '20px', padding: '8px', 
+      marginBottom: '20px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+      position: 'sticky', top: '10px', zIndex: 10
     },
     tab: { 
-      flex: 1, 
-      padding: '12px', 
-      textAlign: 'center', 
-      borderRadius: '15px', 
-      cursor: 'pointer', 
-      transition: '0.3s', 
-      fontWeight: 'bold', 
-      color: '#64748b',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '8px',
-      fontSize: '14px'
+      flex: 1, padding: '12px', textAlign: 'center', borderRadius: '15px', 
+      cursor: 'pointer', transition: '0.3s', fontWeight: 'bold', color: '#64748b',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px'
     },
     activeTab: { background: '#22c55e', color: '#fff' },
     contentArea: { marginTop: '10px' }
@@ -43,7 +30,7 @@ const Inventory = ({ categories = [], onDeleteItem, onInventoryEntry }) => {
 
   return (
     <div style={styles.container}>
-      {/* شريط التنقل */}
+      {/* شريط التنقل العلوي */}
       <div style={styles.tabContainer}>
         <div 
           style={{...styles.tab, ...(activeTab === 'raw' ? styles.activeTab : {})}} 
@@ -66,27 +53,27 @@ const Inventory = ({ categories = [], onDeleteItem, onInventoryEntry }) => {
       </div>
 
       <div style={styles.contentArea}>
-        {/* واجهة الخامات */}
+        {/* 1. واجهة الخامات */}
         {activeTab === 'raw' && (
           <RawMaterials 
-            categories={categories} 
-            onDeleteItem={onDeleteItem} 
+            categories={dataList} 
+            onDeleteItem={onDelete} 
           />
         )}
 
-        {/* واجهة تسجيل التوريد */}
+        {/* 2. واجهة تسجيل التوريد */}
         {activeTab === 'supply' && (
           <SupplyEntry 
             onInventoryEntry={onInventoryEntry} 
-            categories={categories} 
+            categories={dataList} 
           />
         )}
 
-        {/* واجهة المنتجات النهائية */}
+        {/* 3. واجهة المنتجات النهائية */}
         {activeTab === 'finished' && (
           <FinishedProducts 
-            categories={categories} 
-            onDeleteItem={onDeleteItem} 
+            categories={dataList} 
+            onDeleteItem={onDelete} 
           />
         )}
       </div>
