@@ -82,8 +82,13 @@ jobs:
       - name: 7. Generate App Icons & Splash
         run: |
           mkdir -p assets
-          # التأكد من وجود أيقونات التطبيق
-          [ -f "icon-only.png" ] && cp icon-only.png assets/icon-only.png || echo "No icon found"
+          # التأكد من وجود الأيقونة في المسار المطلوب واستنساخها للأصول
+          if [ -f "resources/icon-foreground.png" ]; then
+            cp resources/icon-foreground.png assets/icon-only.png
+            cp resources/icon-foreground.png assets/icon.png
+          elif [ -f "icon-only.png" ]; then
+            cp icon-only.png assets/icon-only.png
+          fi
           npx capacitor-assets generate --android
 
       - name: 8. Build Android Binaries
