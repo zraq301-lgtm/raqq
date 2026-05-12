@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Preferences } from '@capacitor/preferences';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { CapacitorHttp } from '@capacitor/core';
-import { App as AppLauncher } from '@capacitor/app'; // استيراد ميزة التحكم في أزرار الهاتف
+import { CapacitorHttp, Capacitor } from '@capacitor/core'; // إضافة Capacitor للتحقق من المنصة
+import { App as AppLauncher } from '@capacitor/app';
 import Swal from 'sweetalert2';
 
 // استيراد المكونات الأساسية للنظام
@@ -12,7 +12,6 @@ import ProductionManager from './components/ProductionManager';
 
 // إعدادات الروابط الموحدة لنظام معمول ERP
 const API_CONFIG = {
-  BASE: 'https://maamoul-one.vercel.app/api',
   SYNC: 'https://maamoul-one.vercel.app/api/sync',
   GET: 'https://maamoul-one.vercel.app/api/get-data',
   DELETE: 'https://maamoul-one.vercel.app/api/delete-item'
@@ -26,70 +25,63 @@ const App = () => {
 
   // --- 1. المحرك المحلي (Offline-First Engine) ---
   const storage = {
-    save: async (key, data) => await Preferences.set({ key, value: JSON.stringify(data) }),
+    save: async (key, data) => {
+      await Preferences.set({ key, value: JSON.stringify(data) });
+      localStorage.setItem(key, JSON.stringify(data)); // نسخة احتياطية للمتصفح
+    },
     load: async (key) => {
       const { value } = await Preferences.get({ key });
-      return value ? JSON.parse(value) : null;
+      return value ? JSON.parse(value) : JSON.parse(localStorage.getItem(key) || 'null');
     }
   };
 
-  // --- ميزة تفعيل أزرار الهاتف (Back Button Control) ---
+  // --- ميزة تفعيل أزرار الهاتف ---
   useEffect(() => {
     const backHandler = AppLauncher.addListener('backButton', () => {
       if (activePage === 'dashboard') {
-        // إذا كان المستخدم في الرئيسية، يتم إغلاق التطبيق عند الضغط على رجوع
         AppLauncher.exitApp();
       } else {
-        // إذا كان في أي صفحة أخرى، يعود للرئيسية
         setActivePage('dashboard');
       }
     });
-
-    return () => {
-      backHandler.then(h => h.remove());
-    };
+    return () => { backHandler.then(h => h.remove()); };
   }, [activePage]);
 
-  // --- 2. نظام المزامنة الذكي (Cloud Bridge) ---
+  // --- 2. نظام المزامنة والتوحيد (Normalization Logic) ---
   
-  // دالة جلب البيانات الشاملة (معدلة لتوحيد مسميات الخامات لضمان العرض)
   const fetchCloudData = useCallback(async () => {
     try {
       // جلب بيانات الإنتاج
-      const resProd = await CapacitorHttp.get({ 
-        url: `${API_CONFIG.GET}?collectionName=productionData` 
-      });
-      if (resProd.data?.success) {
-        const data = resProd.data.data;
-        setProductionHistory(data);
-        await storage.save('productionHistory', data);
+      const resProd = await CapacitorHttp.get({ url: `${API_CONFIG.GET}?collectionName=productionData` });
+      const prodData = typeof resProd.data === 'string' ? JSON.parse(resProd.data) : resProd.data;
+      if (prodData?.success) {
+        setProductionHistory(prodData.data);
+        await storage.save('productionHistory', prodData.data);
       }
 
-      // جلب بيانات المخزن (الخامات) مع توحيد المسميات لضمان العرض في RawMaterials
-      const resStock = await CapacitorHttp.get({ 
-        url: `${API_CONFIG.GET}?collectionName=stock` 
-      });
-      if (resStock.data?.success) {
-        const rawSData = resStock.data.data;
-        
-        // توحيد البيانات: تحويل item إلى name و quantity إلى balance
-        const normalizedStock = rawSData.map(s => ({
+      // جلب بيانات المخزن مع تطبيق منطق التوحيد (Normalization)
+      const resStock = await CapacitorHttp.get({ url: `${API_CONFIG.GET}?collectionName=stock` });
+      const stockData = typeof resStock.data === 'string' ? JSON.parse(resStock.data) : resStock.data;
+      
+      if (stockData?.success && Array.isArray(stockData.data)) {
+        const normalizedStock = stockData.data.map(s => ({
           ...s,
+          id: s.id || s._id || Date.now() + Math.random(),
           name: s.name || s.item || "صنف غير مسمى",
-          balance: s.balance || s.quantity || 0,
-          price: s.price || 0
+          balance: parseFloat(s.balance || s.quantity || 0),
+          price: parseFloat(s.price || 0)
         }));
 
         setStock(normalizedStock);
         await storage.save('stock', normalizedStock);
       }
     } catch (error) {
-      console.warn("ERP Alert: نظام المزامنة يعمل في وضع الأوفلاين حالياً.");
+      console.warn("ERP Alert: نظام المزامنة يعمل محلياً حالياً.");
     }
   }, []);
 
-  // دالة الحفظ والمزامنة (ERP Push)
   const syncData = async (collection, data) => {
+    if (!data || data.length === 0) return;
     setIsSyncing(true);
     try {
       await CapacitorHttp.post({
@@ -104,23 +96,22 @@ const App = () => {
     }
   };
 
-  // --- دالة معالجة الإضافة الجديدة من قسم التوريد (معدلة لتوحيد البيانات فوراً) ---
+  // --- معالجة الحفظ الموحد ---
   const handleSaveInventory = async (newItem) => {
     const formattedItem = {
       ...newItem,
+      id: newItem.id || Date.now(),
       name: newItem.name || newItem.item,
-      balance: newItem.balance || newItem.quantity,
-      id: newItem.id || Date.now()
+      balance: parseFloat(newItem.balance || newItem.quantity || 0),
+      price: parseFloat(newItem.price || 0)
     };
 
     const updatedStock = [...stock, formattedItem];
     setStock(updatedStock);
-    
     await storage.save('stock', updatedStock);
     await syncData('stock', updatedStock);
   };
 
-  // دالة الحذف النهائي (ERP Purge)
   const performDelete = async (collection, id) => {
     try {
       await CapacitorHttp.post({
@@ -129,27 +120,26 @@ const App = () => {
         data: { collectionName: collection, id }
       });
     } catch (error) {
-      Swal.fire('خطأ مزامنة', 'سيتم الحذف محلياً والمحاولة لاحقاً سحابياً', 'warning');
+      Swal.fire('حذف محلي', 'سيتم التحديث سحابياً لاحقاً', 'info');
     }
   };
 
-  // --- 3. دورة حياة النظام (System Lifecycle) ---
+  // --- 3. دورة حياة النظام ---
   useEffect(() => {
     const bootSystem = async () => {
-      await LocalNotifications.requestPermissions();
-      
+      if (Capacitor.isNativePlatform()) {
+        await LocalNotifications.requestPermissions();
+      }
       const localStock = await storage.load('stock');
       const localHistory = await storage.load('productionHistory');
-      
       if (localStock) setStock(localStock);
       if (localHistory) setProductionHistory(localHistory);
-
       await fetchCloudData();
     };
     bootSystem();
   }, [fetchCloudData]);
 
-  // مراقبة التغييرات وحفظها
+  // مزامنة تلقائية عند تغيير البيانات
   useEffect(() => {
     if (stock.length > 0) {
       storage.save('stock', stock);
@@ -161,27 +151,8 @@ const App = () => {
     if (productionHistory.length > 0) {
       storage.save('productionHistory', productionHistory);
       syncData('productionData', productionHistory);
-      analyzeProduction(productionHistory);
     }
   }, [productionHistory]);
-
-  // --- 4. ذكاء الأعمال (Business Intelligence) ---
-  const analyzeProduction = async (history) => {
-    if (history.length < 3) return;
-    const lastThree = history.slice(0, 3).map(i => parseFloat(i.totalActualCost) || 0);
-    
-    if (lastThree[0] < lastThree[1] && lastThree[1] < lastThree[2]) {
-      await LocalNotifications.schedule({
-        notifications: [{
-          title: "🚀 تنبيه رقة الذكي",
-          body: "تحليل ERP يشير لتراجع الإنتاج لـ 3 فترات متتالية. نحتاج مراجعة الخامات.",
-          id: 77,
-          schedule: { at: new Date(Date.now() + 1000) },
-          extra: { type: 'alert' }
-        }]
-      });
-    }
-  };
 
   const handleDelete = async (id, type) => {
     if (type === 'stock') {
@@ -203,7 +174,7 @@ const App = () => {
     };
   }, [stock, productionHistory]);
 
-  // --- 5. واجهة المستخدم (UI Layout) ---
+  // --- 4. واجهة المستخدم ---
   const pages = {
     dashboard: <Dashboard setActivePage={setActivePage} productionHistory={productionHistory} stats={stats} />,
     inventory: (
