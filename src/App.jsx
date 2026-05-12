@@ -66,6 +66,13 @@ const App = () => {
     }
   };
 
+  // دالة الحفظ الجديدة لمعالجة توريد المخزن (تمت إضافتها لحل مشكلة الصورة)
+  const handleSaveInventory = async (updatedStock) => {
+    setStock(updatedStock);
+    await storage.save('stock', updatedStock);
+    await syncData('stock', updatedStock);
+  };
+
   // دالة الحذف النهائي (ERP Purge)
   const performDelete = async (collection, id) => {
     try {
@@ -155,7 +162,8 @@ const App = () => {
   // --- 5. واجهة المستخدم (UI Layout) ---
   const pages = {
     dashboard: <Dashboard setActivePage={setActivePage} productionHistory={productionHistory} stats={stats} />,
-    inventory: <Inventory onBack={() => setActivePage('dashboard')} stock={stock} setStock={setStock} onDelete={handleDelete} />,
+    // هنا تم تمرير onSaveInventory لحل الخطأ البرمي
+    inventory: <Inventory onBack={() => setActivePage('dashboard')} stock={stock} setStock={setStock} onDelete={handleDelete} onSaveInventory={handleSaveInventory} />,
     production: <ProductionManager onBack={() => setActivePage('dashboard')} stock={stock} setStock={setStock} onSaveProduction={(p) => setProductionHistory(prev => [p, ...prev])} />
   };
 
