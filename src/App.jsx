@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Preferences } from '@capacitor/preferences';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { CapacitorHttp } from '@capacitor/core';
+import { App as AppLauncher } from '@capacitor/app'; // استيراد ميزة التحكم في أزرار الهاتف
 import Swal from 'sweetalert2';
 
 // استيراد المكونات الأساسية للنظام
@@ -31,6 +32,23 @@ const App = () => {
       return value ? JSON.parse(value) : null;
     }
   };
+
+  // --- ميزة تفعيل أزرار الهاتف (Back Button Control) ---
+  useEffect(() => {
+    const backHandler = AppLauncher.addListener('backButton', () => {
+      if (activePage === 'dashboard') {
+        // إذا كان المستخدم في الرئيسية، يتم إغلاق التطبيق عند الضغط على رجوع
+        AppLauncher.exitApp();
+      } else {
+        // إذا كان في أي صفحة أخرى، يعود للرئيسية
+        setActivePage('dashboard');
+      }
+    });
+
+    return () => {
+      backHandler.then(h => h.remove());
+    };
+  }, [activePage]);
 
   // --- 2. نظام المزامنة الذكي (Cloud Bridge) ---
   
@@ -88,7 +106,6 @@ const App = () => {
 
   // --- دالة معالجة الإضافة الجديدة من قسم التوريد (معدلة لتوحيد البيانات فوراً) ---
   const handleSaveInventory = async (newItem) => {
-    // توحيد مسمى الحقل الجديد ليظهر في RawMaterials فوراً
     const formattedItem = {
       ...newItem,
       name: newItem.name || newItem.item,
