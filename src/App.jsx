@@ -27,7 +27,7 @@ const App = () => {
   const storage = {
     save: async (key, data) => {
       await Preferences.set({ key, value: JSON.stringify(data) });
-      localStorage.setItem(key, JSON.stringify(data)); // نسخة احتياطية
+      localStorage.setItem(key, JSON.stringify(data)); 
     },
     load: async (key) => {
       const { value } = await Preferences.get({ key });
@@ -48,7 +48,6 @@ const App = () => {
   }, [activePage]);
 
   // --- 2. نظام المزامنة والتوحيد (Normalization Logic) ---
-  
   const fetchCloudData = useCallback(async () => {
     try {
       // 1. جلب بيانات الإنتاج
@@ -59,17 +58,15 @@ const App = () => {
         await storage.save('productionHistory', prodResponse.data);
       }
 
-      // 2. جلب بيانات المخزن (تم تعديل الدخول للمصفوفة هنا)
+      // 2. جلب بيانات المخزن
       const resStock = await CapacitorHttp.get({ url: `${API_CONFIG.GET}?collectionName=stock` });
       let stockResponse = typeof resStock.data === 'string' ? JSON.parse(resStock.data) : resStock.data;
       
-      // التعديل الجوهري: الوصول لـ stockResponse.data لأن الصورة أظهرت أن البيانات بداخلها
       const rawItems = stockResponse.data || [];
 
       if (stockResponse?.success && Array.isArray(rawItems)) {
         const normalizedStock = rawItems.map(s => ({
           ...s,
-          // استخدام _id القادم من MongoDB كـ id أساسي
           id: s.id || s._id || (Date.now() + Math.random()),
           name: s.name || s.item || "صنف غير مسمى",
           balance: parseFloat(s.balance || s.quantity || 0),
@@ -80,7 +77,7 @@ const App = () => {
         await storage.save('stock', normalizedStock);
       }
     } catch (error) {
-      console.warn("ERP Alert: نظام المزامنة يعمل محلياً حالياً.");
+      console.warn("ERP Alert: فشل الجلب السحابي، يعمل النظام محلياً.");
     }
   }, []);
 
@@ -124,7 +121,7 @@ const App = () => {
         data: { collectionName: collection, id }
       });
     } catch (error) {
-      Swal.fire('حذف محلي', 'سيتم التحديث سحابياً لاحقاً', 'info');
+      console.warn("تم الحذف محلياً فقط");
     }
   };
 
@@ -139,26 +136,10 @@ const App = () => {
       if (localStock) setStock(localStock);
       if (localHistory) setProductionHistory(localHistory);
       
-      // جلب أحدث البيانات من السحاب
       await fetchCloudData();
     };
     bootSystem();
   }, [fetchCloudData]);
-
-  // مزامنة تلقائية عند تغيير البيانات
-  useEffect(() => {
-    if (stock.length > 0) {
-      storage.save('stock', stock);
-      syncData('stock', stock);
-    }
-  }, [stock]);
-
-  useEffect(() => {
-    if (productionHistory.length > 0) {
-      storage.save('productionHistory', productionHistory);
-      syncData('productionData', productionHistory);
-    }
-  }, [productionHistory]);
 
   const handleDelete = async (id, type) => {
     if (type === 'stock') {
@@ -175,14 +156,21 @@ const App = () => {
     return {
       totalItems: stock.length,
       lowStock: stock.filter(i => (parseFloat(i.balance) || 0) < 5).length,
-      financialValue: totalProduction.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' }),
-      inventoryWorth: stock.reduce((s, i) => s + ((parseFloat(i.balance) || 0) * (parseFloat(i.price) || 0)), 0).toFixed(2)
+      inventoryWorth: stock.reduce((s, i) => s + ((parseFloat(i.balance) || 0) * (parseFloat(i.price) || 0)), 0).toFixed(2),
+      rawFinancialValue: totalProduction
     };
   }, [stock, productionHistory]);
 
-  // --- 4. واجهة المستخدم ---
+  // --- 4. واجهة المستخدم (مع ضبط التمرير لـ Dashboard) ---
   const pages = {
-    dashboard: <Dashboard setActivePage={setActivePage} productionHistory={productionHistory} stats={stats} />,
+    dashboard: (
+      <Dashboard 
+        setActivePage={setActivePage} 
+        productionHistory={productionHistory} 
+        stock={stock} 
+        stats={stats} 
+      />
+    ),
     inventory: (
       <Inventory 
         onBack={() => setActivePage('dashboard')} 
@@ -192,14 +180,21 @@ const App = () => {
         onInventoryEntry={handleSaveInventory} 
       />
     ),
-    production: <ProductionManager onBack={() => setActivePage('dashboard')} stock={stock} setStock={setStock} onSaveProduction={(p) => setProductionHistory(prev => [p, ...prev])} />
+    production: (
+      <ProductionManager 
+        onBack={() => setActivePage('dashboard')} 
+        stock={stock} 
+        setStock={setStock} 
+        onSaveProduction={(p) => setProductionHistory(prev => [p, ...prev])} 
+      />
+    )
   };
 
   return (
-    <div style={{ direction: 'rtl', minHeight: '100vh', backgroundColor: '#f4f7fe' }}>
+    <div style={{ direction: 'rtl', minHeight: '100vh', backgroundColor: '#f4f7fe', fontFamily: 'Tajawal, sans-serif' }}>
       {isSyncing && (
-        <div style={{ position: 'fixed', top: 10, left: 10, zIndex: 1000, fontSize: '10px', color: '#2563eb' }}>
-          🔄 جاري مزامنة ERP...
+        <div style={{ position: 'fixed', top: 10, left: 10, zIndex: 1000, fontSize: '10px', color: '#2563eb', background: '#fff', padding: '2px 8px', borderRadius: '10px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
+          🔄 جاري المزامنة...
         </div>
       )}
 
@@ -209,7 +204,7 @@ const App = () => {
 
       <nav style={{
         position: 'fixed', bottom: '15px', left: '15px', right: '15px',
-        height: '70px', backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        height: '70px', backgroundColor: 'rgba(255, 255, 255, 0.9)',
         backdropFilter: 'blur(15px)', borderRadius: '25px',
         display: 'flex', justifyContent: 'space-around', alignItems: 'center',
         boxShadow: '0 8px 32px rgba(0,0,0,0.1)', border: '1px solid rgba(255,255,255,0.3)',
@@ -226,7 +221,7 @@ const App = () => {
 const NavButton = ({ active, icon, label, onClick }) => (
   <button onClick={onClick} style={{
     border: 'none', background: 'none', display: 'flex', flexDirection: 'column',
-    alignItems: 'center', color: active ? '#2563eb' : '#94a3b8', transition: '0.3s'
+    alignItems: 'center', color: active ? '#2563eb' : '#94a3b8', transition: '0.3s', cursor: 'pointer'
   }}>
     <span style={{ fontSize: '20px' }}>{icon}</span>
     <span style={{ fontSize: '12px', fontWeight: active ? 'bold' : 'normal' }}>{label}</span>
