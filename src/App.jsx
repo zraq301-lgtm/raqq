@@ -4,12 +4,11 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { CapacitorHttp } from '@capacitor/core';
 import Swal from 'sweetalert2';
 
-// استيراد المكونات الأساسية للنظام
+// تصحيح الاستيراد: المكونات موجودة في مجلد components بجانب App
 import Dashboard from './components/Dashboard';
 import Inventory from './components/Inventory';
 import ProductionManager from './components/ProductionManager';
 
-// إعدادات الروابط الموحدة لنظام معمول ERP
 const API_CONFIG = {
   BASE: 'https://maamoul-one.vercel.app/api',
   SYNC: 'https://maamoul-one.vercel.app/api/sync',
@@ -23,7 +22,6 @@ const App = () => {
   const [productionHistory, setProductionHistory] = useState([]);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // --- 1. المحرك المحلي (Offline-First Engine) ---
   const storage = {
     save: async (key, data) => await Preferences.set({ key, value: JSON.stringify(data) }),
     load: async (key) => {
@@ -32,7 +30,6 @@ const App = () => {
     }
   };
 
-  // --- 2. نظام المزامنة الذكي (Cloud Bridge) ---
   const fetchCloudData = useCallback(async () => {
     try {
       const response = await CapacitorHttp.get({ 
@@ -44,7 +41,7 @@ const App = () => {
         await storage.save('productionHistory', data);
       }
     } catch (error) {
-      console.warn("ERP Alert: نظام المزامنة يعمل في وضع الأوفلاين حالياً.");
+      console.warn("ERP Offline Mode");
     }
   }, []);
 
@@ -58,15 +55,14 @@ const App = () => {
         data: { collectionName: collection, data }
       });
     } catch (error) {
-      console.error("Sync Error:", error);
+      console.error("Sync Error");
     } finally {
       setIsSyncing(false);
     }
   };
 
-  // --- ضبط دالة الحفظ لتعالج التوريد وتحدث المخزن فوراً ---
+  // دالة حفظ التوريد المحدثة
   const handleSaveInventory = async (p) => {
-    // إذا كانت البيانات قادمة كصنف توريد (Object)
     if (p.item) {
       const qty = parseFloat(p.quantity || 0);
       const price = parseFloat(p.price || 0);
@@ -84,10 +80,8 @@ const App = () => {
         syncData('stock', updated);
         return updated;
       });
-      Swal.fire({ title: 'تم حفظ التوريد', icon: 'success', timer: 1000, showConfirmButton: false });
-    } 
-    // إذا كانت البيانات مصفوفة كاملة محدثة
-    else if (Array.isArray(p)) {
+      Swal.fire({ title: 'تم التوريد', icon: 'success', timer: 1000, showConfirmButton: false });
+    } else if (Array.isArray(p)) {
       setStock(p);
       await storage.save('stock', p);
       await syncData('stock', p);
@@ -102,46 +96,28 @@ const App = () => {
         data: { collectionName: collection, id }
       });
     } catch (error) {
-      console.error("Delete sync error");
+      console.error("Delete Error");
     }
   };
 
-  // --- 3. دورة حياة النظام (System Lifecycle) ---
   useEffect(() => {
-    const bootSystem = async () => {
+    const boot = async () => {
       await LocalNotifications.requestPermissions();
-      const localStock = await storage.load('stock');
-      const localHistory = await storage.load('productionHistory');
-      if (localStock) setStock(localStock);
-      if (localHistory) setProductionHistory(localHistory);
+      const s = await storage.load('stock');
+      const h = await storage.load('productionHistory');
+      if (s) setStock(s);
+      if (h) setProductionHistory(h);
       await fetchCloudData();
     };
-    bootSystem();
+    boot();
   }, [fetchCloudData]);
 
   useEffect(() => {
     if (productionHistory.length > 0) {
       storage.save('productionHistory', productionHistory);
       syncData('productionData', productionHistory);
-      analyzeProduction(productionHistory);
     }
   }, [productionHistory]);
-
-  // --- 4. ذكاء الأعمال (Business Intelligence) ---
-  const analyzeProduction = async (history) => {
-    if (history.length < 3) return;
-    const lastThree = history.slice(-3).map(i => parseFloat(i.totalActualCost) || 0);
-    if (lastThree[0] < lastThree[1] && lastThree[1] < lastThree[2]) {
-      await LocalNotifications.schedule({
-        notifications: [{
-          title: "🚀 تنبيه رقة الذكي",
-          body: "تحليل ERP يشير لتراجع الإنتاج لـ 3 فترات متتالية. نحتاج مراجعة الخامات.",
-          id: 77,
-          schedule: { at: new Date(Date.now() + 1000) }
-        }]
-      });
-    }
-  };
 
   const handleDelete = async (id, type) => {
     if (type === 'stock') {
@@ -156,16 +132,15 @@ const App = () => {
   };
 
   const stats = useMemo(() => {
-    const totalProduction = productionHistory.reduce((s, p) => s + (parseFloat(p.totalActualCost) || 0), 0);
+    const totalProd = productionHistory.reduce((s, p) => s + (parseFloat(p.totalActualCost) || 0), 0);
     return {
       totalItems: stock.length,
       lowStock: stock.filter(i => (i.balance || 0) < 5).length,
-      financialValue: totalProduction.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' }),
+      financialValue: totalProd.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' }),
       inventoryWorth: stock.reduce((s, i) => s + ((i.balance || 0) * (i.price || 0)), 0).toFixed(2)
     };
   }, [stock, productionHistory]);
 
-  // --- 5. واجهة المستخدم (UI Layout) ---
   const pages = {
     dashboard: <Dashboard setActivePage={setActivePage} productionHistory={productionHistory} stock={stock} stats={stats} />,
     inventory: <Inventory onBack={() => setActivePage('dashboard')} stock={stock} setStock={setStock} onDelete={handleDelete} onSaveInventory={handleSaveInventory} />,
@@ -176,38 +151,19 @@ const App = () => {
     <div style={{ direction: 'rtl', minHeight: '100vh', backgroundColor: '#f4f7fe' }}>
       {isSyncing && (
         <div style={{ position: 'fixed', top: 10, left: 10, zIndex: 1000, fontSize: '10px', color: '#2563eb' }}>
-          🔄 جاري مزامنة ERP...
+          🔄 جاري المزامنة...
         </div>
       )}
-
       <main style={{ padding: '16px', paddingBottom: '100px' }}>
         {pages[activePage] || pages.dashboard}
       </main>
-
-      <nav style={{
-        position: 'fixed', bottom: '15px', left: '15px', right: '15px',
-        height: '70px', backgroundColor: 'rgba(255, 255, 255, 0.8)',
-        backdropFilter: 'blur(15px)', borderRadius: '25px',
-        display: 'flex', justifyContent: 'space-around', alignItems: 'center',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.1)', border: '1px solid rgba(255,255,255,0.3)',
-        zIndex: 1000
-      }}>
-        <NavButton active={activePage === 'dashboard'} icon="📊" label="الرئيسية" onClick={() => setActivePage('dashboard')} />
-        <NavButton active={activePage === 'production'} icon="🏭" label="الإنتاج" onClick={() => setActivePage('production')} />
-        <NavButton active={activePage === 'inventory'} icon="📦" label="المخزن" onClick={() => setActivePage('inventory')} />
+      <nav style={{ position: 'fixed', bottom: '15px', left: '15px', right: '15px', height: '70px', backgroundColor: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(15px)', borderRadius: '25px', display: 'flex', justifyContent: 'space-around', alignItems: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.1)', zIndex: 1000 }}>
+        <button onClick={() => setActivePage('dashboard')} style={{ border: 'none', background: 'none' }}>📊 الرئيسية</button>
+        <button onClick={() => setActivePage('production')} style={{ border: 'none', background: 'none' }}>🏭 الإنتاج</button>
+        <button onClick={() => setActivePage('inventory')} style={{ border: 'none', background: 'none' }}>📦 المخزن</button>
       </nav>
     </div>
   );
 };
-
-const NavButton = ({ active, icon, label, onClick }) => (
-  <button onClick={onClick} style={{
-    border: 'none', background: 'none', display: 'flex', flexDirection: 'column',
-    alignItems: 'center', color: active ? '#2563eb' : '#94a3b8', transition: '0.3s', cursor: 'pointer'
-  }}>
-    <span style={{ fontSize: '20px' }}>{icon}</span>
-    <span style={{ fontSize: '12px', fontWeight: active ? 'bold' : 'normal' }}>{label}</span>
-  </button>
-);
 
 export default App;
