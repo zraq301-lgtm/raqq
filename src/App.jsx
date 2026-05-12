@@ -51,6 +51,31 @@ const App = () => {
     return () => { backHandler.then(h => h.remove()); };
   }, [activePage]);
 
+  // --- دالة مساعدة لتجميع الأصناف (Helper Function) ---
+  const groupItems = (items) => {
+    const grouped = new Map();
+    items.forEach(item => {
+      const name = (item.name || item.item || "صنف غير مسمى").trim();
+      const balance = parseFloat(item.balance || item.quantity || 0);
+      const price = parseFloat(item.price || 0);
+
+      if (grouped.has(name)) {
+        const existing = grouped.get(name);
+        existing.balance += balance;
+        if (price > 0) existing.price = price; // تحديث السعر إذا توفر سعر جديد
+      } else {
+        grouped.set(name, {
+          ...item,
+          id: item.id || item._id || Date.now() + Math.random(),
+          name: name,
+          balance: balance,
+          price: price
+        });
+      }
+    });
+    return Array.from(grouped.values());
+  };
+
   // --- 2. نظام المزامنة والتوحيد ---
   const fetchCloudData = useCallback(async () => {
     try {
@@ -69,14 +94,8 @@ const App = () => {
       const rawItems = stockResponse.data || [];
 
       if (stockResponse?.success && Array.isArray(rawItems)) {
-        const normalizedStock = rawItems.map(s => ({
-          ...s,
-          id: s.id || s._id || (Date.now() + Math.random()),
-          name: s.name || s.item || "صنف غير مسمى",
-          balance: parseFloat(s.balance || s.quantity || 0),
-          price: parseFloat(s.price || 0)
-        }));
-
+        // تطبيق التجميع عند الجلب من السحابة
+        const normalizedStock = groupItems(rawItems);
         setStock(normalizedStock);
         await storage.save('stock', normalizedStock);
       }
@@ -104,13 +123,14 @@ const App = () => {
   const handleSaveInventory = async (newItem) => {
     const formattedItem = {
       ...newItem,
-      id: newItem.id || Date.now(),
       name: newItem.name || newItem.item,
       balance: parseFloat(newItem.balance || newItem.quantity || 0),
       price: parseFloat(newItem.price || 0)
     };
 
-    const updatedStock = [...stock, formattedItem];
+    // تطبيق التجميع عند الإضافة اليدوية أيضاً
+    const updatedStock = groupItems([...stock, formattedItem]);
+    
     setStock(updatedStock);
     await storage.save('stock', updatedStock);
     await syncData('stock', updatedStock);
@@ -165,7 +185,6 @@ const App = () => {
   }, [stock, productionHistory]);
 
   // --- 4. توجيه الصفحات ---
-  // ملاحظة: Dashboard سيقوم بطلب setActivePage('inventory') للدخول لصفحة الخامات
   const pages = {
     dashboard: (
       <Dashboard 
