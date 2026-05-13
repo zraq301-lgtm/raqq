@@ -16,13 +16,17 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
   const shifts = ['الأولى', 'الثانية', 'السهرة', 'إضافي'];
 
   const handleChange = (e, category, field, index = null) => {
-    const value = e.target.type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value;
+    // التأكد من تحويل القيمة لرقم إذا كان النوع number
+    const value = e.target.type === 'number' ? (e.target.value === '' ? 0 : parseFloat(e.target.value)) : e.target.value;
     
     if (category === 'ingredients') {
-      setFormData(prev => ({ ...prev, ingredients: { ...prev.ingredients, [field]: value } }));
+      setFormData(prev => ({ 
+        ...prev, 
+        ingredients: { ...prev.ingredients, [field]: value } 
+      }));
     } else if (category === 'products') {
       const updatedProducts = [...formData.products];
-      updatedProducts[index][field] = value;
+      updatedProducts[index] = { ...updatedProducts[index], [field]: value };
       setFormData(prev => ({ ...prev, products: updatedProducts }));
     } else {
       setFormData(prev => ({ ...prev, [field]: value }));
@@ -43,14 +47,14 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
 
   const handleProcessProduction = () => {
     if (!onSaveProduction || !setStock) {
-      console.error("Missing required functions (onSaveProduction or setStock)");
+      console.error("Missing required functions");
       return;
     }
 
-    let totalActualCost = 0; // إجمالي تكلفة المواد الخام
+    let totalActualCost = 0;
     const updatedStock = JSON.parse(JSON.stringify(stock || []));
 
-    // 1. سحب الخامات وحساب إجمالي التكلفة بناءً على أسعار المخزن
+    // 1. حساب تكلفة الخامات المسحوبة
     for (const [ingName, requiredQty] of Object.entries(formData.ingredients)) {
       if (requiredQty <= 0) continue;
       
@@ -83,17 +87,17 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
       }
     }
 
-    // 2. حساب تكلفة الكرتونة الواحدة (توزيع الإجمالي على الكمية المنتجة)
+    // 2. حساب تكلفة الكرتونة
     const totalProductionUnits = formData.products.reduce((sum, p) => sum + (parseFloat(p.quantity) || 0), 0);
     
     if (totalProductionUnits <= 0) {
-      alert("⚠️ يرجى إدخال عدد الكراتين المنتجة");
+      alert("⚠️ يرجى إدخال عدد الكراتين المنتجة أولاً");
       return;
     }
 
     const costPerCarton = totalActualCost / totalProductionUnits;
 
-    // 3. تحديث المنتجات التامة في المخزن بالسعر الجديد
+    // 3. تحديث المخزن بالمنتج الجديد
     formData.products.forEach(prod => {
       if (prod.quantity <= 0) return;
 
@@ -101,7 +105,7 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
       const newBatch = { 
         purchaseDate: formData.date, 
         quantity: parseFloat(prod.quantity), 
-        price: costPerCarton // سعر الكرتونة المحسوب
+        price: costPerCarton 
       };
 
       if (productInStock) {
@@ -122,11 +126,11 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
 
     setStock(updatedStock);
     
-    // 4. إرسال البيانات للنظام الأب (الحفظ)
+    // 4. إرسال البيانات النهائية للنظام الأب
     onSaveProduction({ 
       ...formData, 
-      totalActualCost: totalActualCost.toFixed(2), // إجمالي تكلفة المواد
-      actualUnitCost: costPerCarton.toFixed(2), // سعر الكرتونة الواحدة
+      totalActualCost: totalActualCost.toFixed(2),
+      actualUnitCost: costPerCarton.toFixed(2),
       totalProducedQty: totalProductionUnits
     });
 
@@ -141,12 +145,13 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
       });
     }
 
-    alert(`✅ تم الترحيل بنجاح!\nإجمالي تكلفة المواد: ${totalActualCost.toFixed(2)} ج.م\nسعر الكرتونة الواحدة: ${costPerCarton.toFixed(2)} ج.م`);
+    alert(`✅ تم الترحيل بنجاح!\nإجمالي التكلفة: ${totalActualCost.toFixed(2)} ج.م\nتكلفة الكرتونة: ${costPerCarton.toFixed(2)} ج.م`);
     if (onBack) onBack();
   };
 
   return (
     <div className="production-manager" style={{ direction: 'rtl', padding: '15px', backgroundColor: '#f8fafd', minHeight: '100vh' }}>
+      {/* الرأس */}
       <div style={{ backgroundColor: '#fff', borderRadius: '20px', padding: '20px', marginBottom: '15px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h2 style={{ margin: 0, color: '#1e293b' }}>تشغيل الإنتاج</h2>
@@ -160,6 +165,7 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
         </div>
       </div>
 
+      {/* مدخلات الخامات */}
       <div style={{ backgroundColor: '#fff', borderRadius: '20px', padding: '15px', marginBottom: '15px' }}>
         <h3 style={{ color: '#64748b', fontSize: '16px', marginBottom: '10px' }}>الخامات المستهلكة</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
@@ -171,6 +177,7 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
                 <div style={{ fontSize: '12px', fontWeight: 'bold' }}>{ing}</div>
                 <input 
                   type="number" 
+                  value={formData.ingredients[ing] || ''}
                   placeholder="0"
                   onChange={(e) => handleChange(e, 'ingredients', ing)}
                   style={{ width: '100%', textAlign: 'center', border: 'none', background: 'transparent', fontSize: '16px', outline: 'none', borderBottom: '1px solid #cbd5e1' }}
@@ -182,6 +189,7 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
         </div>
       </div>
 
+      {/* مدخلات الإنتاج (عدد الكراتين) */}
       <div style={{ backgroundColor: '#1e293b', borderRadius: '20px', padding: '20px', color: '#fff' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
           <h3 style={{ margin: 0, color: '#f59e0b' }}>الإنتاج المحقق (عدد الكراتين)</h3>
@@ -205,7 +213,7 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
               <label style={{ fontSize: '11px' }}>عدد الكراتين</label>
               <input 
                 type="number" 
-                value={prod.quantity} 
+                value={prod.quantity || ''} 
                 onChange={(e) => handleChange(e, 'products', 'quantity', index)}
                 placeholder="0"
                 style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #475569', background: '#2d3a4f', color: '#fff' }}
@@ -221,6 +229,7 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
           <label style={{ fontSize: '12px' }}>كمية الهالك (بالكرتونة):</label>
           <input 
             type="number" 
+            value={formData.wasteQty || ''}
             onChange={(e) => handleChange(e, 'info', 'wasteQty')}
             style={{ width: '100%', padding: '10px', borderRadius: '8px', border: 'none', marginTop: '5px', color: '#000' }}
             placeholder="أدخل كمية الهالك إن وجدت"
