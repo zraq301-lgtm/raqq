@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { 
   ShoppingCart, Tag, Factory, Warehouse, 
-  BarChart3, TrendingUp, Calendar, BrainCircuit, Loader2
+  BarChart3, TrendingUp, Calendar, BrainCircuit, Loader2, Clock
 } from 'lucide-react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { CapacitorHttp } from '@capacitor/core';
@@ -26,7 +26,6 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
     const todayProd = productionHistory.filter(p => p.date === today);
     const totalCost = todayProd.reduce((sum, p) => sum + parseFloat(p.totalActualCost || 0), 0);
     
-    // حساب عدد الخامات (التي رصيدها منخفض للتنبيه)
     const lowStockCount = stock.filter(i => parseFloat(i.balance || i.quantity || 0) < 5).length;
 
     Swal.fire({
@@ -80,7 +79,6 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
     }
   };
 
-  // تعريف الأقسام مع الألوان والأيقونات
   const sections = [
     { id: 'production', title: 'تشغيل الإنتاج', icon: <Factory size={28} />, color: '#e67e22', desc: 'إضافة وردية جديدة' },
     { id: 'inventory', title: 'إدارة المخزن', icon: <Warehouse size={28} />, color: '#3498db', desc: 'خامات ومنتجات' },
@@ -151,26 +149,43 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
         ))}
       </div>
 
-      {/* آخر العمليات */}
+      {/* آخر العمليات المحدثة */}
       <div style={cardStyle}>
         <h3 style={cardTitleStyle}>
-          <Calendar size={18} color="#3498db" /> آخر عمليات الإنتاج
+          <Calendar size={18} color="#3498db" /> تفاصيل آخر عمليات الإنتاج
         </h3>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right', minWidth: '400px' }}>
             <thead>
-              <tr style={{ color: '#94a3b8', fontSize: '12px', borderBottom: '1px solid #f1f5f9' }}>
-                <th style={{ padding: '10px 5px' }}>التاريخ</th>
-                <th style={{ padding: '10px 5px' }}>الصنف</th>
-                <th style={{ padding: '10px 5px' }}>التكلفة</th>
+              <tr style={{ color: '#94a3b8', fontSize: '11px', borderBottom: '1px solid #f1f5f9' }}>
+                <th style={{ padding: '10px 5px' }}>التاريخ والوقت</th>
+                <th style={{ padding: '10px 5px' }}>المنتج</th>
+                <th style={{ padding: '10px 5px' }}>الكمية</th>
+                <th style={{ padding: '10px 5px' }}>سعر الكرتونة</th>
+                <th style={{ padding: '10px 5px' }}>الإجمالي</th>
               </tr>
             </thead>
             <tbody>
-              {productionHistory.slice(-4).reverse().map((log, idx) => (
-                <tr key={idx} style={{ fontSize: '13px', borderBottom: '1px solid #f8fafc' }}>
-                  <td style={{ padding: '10px 5px' }}>{log.date?.split('-').reverse().slice(0,2).join('/')}</td>
-                  <td style={{ padding: '10px 5px', fontWeight: '500' }}>{log.products?.[0]?.name || 'إنتاج'}</td>
-                  <td style={{ padding: '10px 5px', color: '#10b981', fontWeight: 'bold' }}>{log.totalActualCost} ج</td>
+              {productionHistory.slice(-5).reverse().map((log, idx) => (
+                <tr key={idx} style={{ fontSize: '12px', borderBottom: '1px solid #f8fafc' }}>
+                  <td style={{ padding: '10px 5px', color: '#64748b' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span>{log.date}</span>
+                      <span style={{ fontSize: '10px', color: '#94a3b8' }}><Clock size={10} /> {log.shift || 'الوردية'}</span>
+                    </div>
+                  </td>
+                  <td style={{ padding: '10px 5px', fontWeight: 'bold', color: '#1e293b' }}>
+                    {log.products?.[0]?.name || 'غير محدد'}
+                  </td>
+                  <td style={{ padding: '10px 5px' }}>
+                    {log.products?.[0]?.quantity || 0} كرتونة
+                  </td>
+                  <td style={{ padding: '10px 5px', color: '#3498db' }}>
+                    {log.actualUnitCost || '0.00'} ج
+                  </td>
+                  <td style={{ padding: '10px 5px', color: '#10b981', fontWeight: 'bold' }}>
+                    {log.totalActualCost} ج
+                  </td>
                 </tr>
               ))}
             </tbody>
