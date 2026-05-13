@@ -62,7 +62,7 @@ const App = () => {
       if (grouped.has(name)) {
         const existing = grouped.get(name);
         existing.balance += balance;
-        if (price > 0) existing.price = price; // تحديث السعر إذا توفر سعر جديد
+        if (price > 0) existing.price = price; 
       } else {
         grouped.set(name, {
           ...item,
@@ -79,7 +79,6 @@ const App = () => {
   // --- 2. نظام المزامنة والتوحيد ---
   const fetchCloudData = useCallback(async () => {
     try {
-      // جلب بيانات الإنتاج
       const resProd = await CapacitorHttp.get({ url: `${API_CONFIG.GET}?collectionName=productionData` });
       let prodResponse = typeof resProd.data === 'string' ? JSON.parse(resProd.data) : resProd.data;
       if (prodResponse?.success && prodResponse.data) {
@@ -87,14 +86,12 @@ const App = () => {
         await storage.save('productionHistory', prodResponse.data);
       }
 
-      // جلب بيانات المخزن
       const resStock = await CapacitorHttp.get({ url: `${API_CONFIG.GET}?collectionName=stock` });
       let stockResponse = typeof resStock.data === 'string' ? JSON.parse(resStock.data) : resStock.data;
       
       const rawItems = stockResponse.data || [];
 
       if (stockResponse?.success && Array.isArray(rawItems)) {
-        // تطبيق التجميع عند الجلب من السحابة
         const normalizedStock = groupItems(rawItems);
         setStock(normalizedStock);
         await storage.save('stock', normalizedStock);
@@ -120,6 +117,22 @@ const App = () => {
     }
   };
 
+  // --- دالة حفظ الإنتاج الجديد (New Function to handle Production saving) ---
+  const handleSaveProduction = async (newProduction) => {
+    // 1. تحديث الحالة المحلية للتاريخ (History)
+    const updatedHistory = [newProduction, ...productionHistory];
+    setProductionHistory(updatedHistory);
+    
+    // 2. الحفظ المحلي والمزامنة للسجل
+    await storage.save('productionHistory', updatedHistory);
+    await syncData('productionData', [newProduction]); // مزامنة السجل الجديد فقط أو السجل كاملاً
+
+    // 3. بما أن الإنتاج قام بتحديث المخزن محلياً عبر setStock، نقوم بمزامنة المخزن أيضاً لضمان ثبات البيانات
+    // نستخدم الحالة الحالية للمخزن لأن ProductionManager استدعى setStock بالفعل
+    await storage.save('stock', stock);
+    await syncData('stock', stock);
+  };
+
   const handleSaveInventory = async (newItem) => {
     const formattedItem = {
       ...newItem,
@@ -128,7 +141,6 @@ const App = () => {
       price: parseFloat(newItem.price || 0)
     };
 
-    // تطبيق التجميع عند الإضافة اليدوية أيضاً
     const updatedStock = groupItems([...stock, formattedItem]);
     
     setStock(updatedStock);
@@ -208,7 +220,7 @@ const App = () => {
         onBack={() => setActivePage('dashboard')} 
         stock={stock} 
         setStock={setStock} 
-        onSaveProduction={(p) => setProductionHistory(prev => [p, ...prev])} 
+        onSaveProduction={handleSaveProduction} 
       />
     )
   };
