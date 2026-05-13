@@ -47,10 +47,10 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
       return;
     }
 
-    let totalActualCost = 0;
+    let totalActualCost = 0; // إجمالي تكلفة المواد الخام
     const updatedStock = JSON.parse(JSON.stringify(stock || []));
 
-    // 1. سحب الخامات وحساب التكلفة
+    // 1. سحب الخامات وحساب إجمالي التكلفة بناءً على أسعار المخزن
     for (const [ingName, requiredQty] of Object.entries(formData.ingredients)) {
       if (requiredQty <= 0) continue;
       
@@ -83,10 +83,17 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
       }
     }
 
-    // 2. توزيع التكلفة وتحديث المنتجات
+    // 2. حساب تكلفة الكرتونة الواحدة (توزيع الإجمالي على الكمية المنتجة)
     const totalProductionUnits = formData.products.reduce((sum, p) => sum + (parseFloat(p.quantity) || 0), 0);
-    const costPerGeneralUnit = totalProductionUnits > 0 ? (totalActualCost / totalProductionUnits) : 0;
+    
+    if (totalProductionUnits <= 0) {
+      alert("⚠️ يرجى إدخال عدد الكراتين المنتجة");
+      return;
+    }
 
+    const costPerCarton = totalActualCost / totalProductionUnits;
+
+    // 3. تحديث المنتجات التامة في المخزن بالسعر الجديد
     formData.products.forEach(prod => {
       if (prod.quantity <= 0) return;
 
@@ -94,15 +101,13 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
       const newBatch = { 
         purchaseDate: formData.date, 
         quantity: parseFloat(prod.quantity), 
-        price: costPerGeneralUnit 
+        price: costPerCarton // سعر الكرتونة المحسوب
       };
 
       if (productInStock) {
         if (!productInStock.batches) productInStock.batches = [];
         productInStock.batches.push(newBatch);
         productInStock.balance = (productInStock.balance || 0) + parseFloat(prod.quantity);
-        // تأكد من تحديث النوع لضمان ظهوره في صفحة المنتجات
-        productInStock.type = 'finished'; 
       } else {
         updatedStock.push({
           id: Date.now() + Math.random(),
@@ -110,20 +115,19 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
           balance: parseFloat(prod.quantity),
           unit: 'كرتونة',
           batches: [newBatch],
-          price: costPerGeneralUnit,
-          type: 'finished' // هذا هو السطر المفتاح لظهور المنتج في الواجهة الصحيحة
+          price: costPerCarton
         });
       }
     });
 
-    // تحديث الحالة في App
     setStock(updatedStock);
     
-    // إرسال البيانات لسجل الإنتاج لظهورها في لوحة التحكم
+    // 4. إرسال البيانات للنظام الأب (الحفظ)
     onSaveProduction({ 
       ...formData, 
-      totalActualCost: totalActualCost.toFixed(2), 
-      actualUnitCost: costPerGeneralUnit.toFixed(2) 
+      totalActualCost: totalActualCost.toFixed(2), // إجمالي تكلفة المواد
+      actualUnitCost: costPerCarton.toFixed(2), // سعر الكرتونة الواحدة
+      totalProducedQty: totalProductionUnits
     });
 
     if (formData.wasteQty > 0 && onSaveWaste) {
@@ -132,22 +136,21 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
         date: formData.date,
         item: `هالك إنتاج - وردية ${formData.shift}`,
         quantity: formData.wasteQty,
-        costAtLoss: (costPerGeneralUnit * formData.wasteQty).toFixed(2),
+        costAtLoss: (costPerCarton * formData.wasteQty).toFixed(2),
         reason: "هالك تشغيل"
       });
     }
 
-    alert(`✅ تم ترحيل الإنتاج بنجاح!\nإجمالي التكلفة: ${totalActualCost.toFixed(2)} ج.م`);
+    alert(`✅ تم الترحيل بنجاح!\nإجمالي تكلفة المواد: ${totalActualCost.toFixed(2)} ج.م\nسعر الكرتونة الواحدة: ${costPerCarton.toFixed(2)} ج.م`);
     if (onBack) onBack();
   };
 
   return (
     <div className="production-manager" style={{ direction: 'rtl', padding: '15px', backgroundColor: '#f8fafd', minHeight: '100vh' }}>
-      {/* رأس الصفحة */}
       <div style={{ backgroundColor: '#fff', borderRadius: '20px', padding: '20px', marginBottom: '15px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h2 style={{ margin: 0, color: '#1e293b' }}>تشغيل الإنتاج</h2>
-          <span style={{ color: '#f59e0b', fontSize: '14px' }}><Factory size={16} /> قسم التصنيع</span>
+          <span style={{ color: '#f59e0b', fontSize: '14px' }}><Factory size={16} /> قسم التصنيع وحساب التكلفة</span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
           <input type="date" value={formData.date} onChange={(e) => handleChange(e, 'info', 'date')} style={{ padding: '5px', borderRadius: '8px', border: '1px solid #ddd' }} />
@@ -157,7 +160,6 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
         </div>
       </div>
 
-      {/* مدخلات الخامات */}
       <div style={{ backgroundColor: '#fff', borderRadius: '20px', padding: '15px', marginBottom: '15px' }}>
         <h3 style={{ color: '#64748b', fontSize: '16px', marginBottom: '10px' }}>الخامات المستهلكة</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
@@ -180,10 +182,9 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
         </div>
       </div>
 
-      {/* المنتجات المستهدفة */}
       <div style={{ backgroundColor: '#1e293b', borderRadius: '20px', padding: '20px', color: '#fff' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
-          <h3 style={{ margin: 0, color: '#f59e0b' }}>المنتج التام</h3>
+          <h3 style={{ margin: 0, color: '#f59e0b' }}>الإنتاج المحقق (عدد الكراتين)</h3>
           <button onClick={addProductField} style={{ background: '#334155', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '8px', cursor: 'pointer' }}>
             <Plus size={14} /> إضافة منتج
           </button>
@@ -192,7 +193,7 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
         {formData.products.map((prod, index) => (
           <div key={index} style={{ display: 'flex', gap: '10px', marginBottom: '10px', alignItems: 'flex-end' }}>
             <div style={{ flex: 2 }}>
-              <label style={{ fontSize: '11px' }}>المنتج</label>
+              <label style={{ fontSize: '11px' }}>اسم المنتج</label>
               <input 
                 type="text" 
                 value={prod.name} 
@@ -201,11 +202,12 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
               />
             </div>
             <div style={{ flex: 1 }}>
-              <label style={{ fontSize: '11px' }}>الكمية</label>
+              <label style={{ fontSize: '11px' }}>عدد الكراتين</label>
               <input 
                 type="number" 
                 value={prod.quantity} 
                 onChange={(e) => handleChange(e, 'products', 'quantity', index)}
+                placeholder="0"
                 style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #475569', background: '#2d3a4f', color: '#fff' }}
               />
             </div>
@@ -216,22 +218,22 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
         ))}
 
         <div style={{ marginTop: '15px', borderTop: '1px solid #334155', paddingTop: '10px' }}>
-          <label style={{ fontSize: '12px' }}>كمية الهالك:</label>
+          <label style={{ fontSize: '12px' }}>كمية الهالك (بالكرتونة):</label>
           <input 
             type="number" 
             onChange={(e) => handleChange(e, 'info', 'wasteQty')}
-            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: 'none', marginTop: '5px' }}
+            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: 'none', marginTop: '5px', color: '#000' }}
             placeholder="أدخل كمية الهالك إن وجدت"
           />
         </div>
 
         <button onClick={handleProcessProduction} style={{ width: '100%', padding: '15px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '16px', marginTop: '20px', cursor: 'pointer' }}>
-          ترحيل الإنتاج للمخزن
+          حساب التكلفة وترحيل للمخزن
         </button>
       </div>
 
       <button onClick={onBack} style={{ width: '100%', marginTop: '10px', background: 'none', border: '1px solid #ddd', padding: '10px', borderRadius: '12px', color: '#64748b', cursor: 'pointer' }}>
-        <ArrowLeft size={16} /> العودة
+        <ArrowLeft size={16} /> العودة للرئيسية
       </button>
     </div>
   );
