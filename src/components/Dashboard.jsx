@@ -7,6 +7,9 @@ import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, A
 import { CapacitorHttp } from '@capacitor/core';
 import Swal from 'sweetalert2';
 
+// استيراد الصورة من المسار المحلي
+import logoSrc from './resources/icon-foreground.png';
+
 const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = {}, setProductionHistory }) => {
   const [isAiLoading, setIsAiLoading] = useState(false);
 
@@ -20,36 +23,51 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
     })).slice(-7); 
   }, [productionHistory]);
 
-  // وظيفة حذف عملية إنتاج مرتبطة بـ App.jsx
-  const deleteProductionEntry = (logToDelete) => {
-    Swal.fire({
+  // وظيفة حذف عملية إنتاج مرتبطة بقاعدة البيانات الخارجية و App.jsx
+  const deleteProductionEntry = async (logToDelete) => {
+    const result = await Swal.fire({
       title: 'هل أنت متأكد؟',
-      text: "سيتم حذف هذه العملية نهائياً من قاعدة البيانات والسجل",
+      text: "سيتم حذف هذه العملية نهائياً من السيرفر ومن الشاشة",
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
       cancelButtonColor: '#64748b',
       confirmButtonText: 'نعم، احذف نهائياً',
       cancelButtonText: 'إلغاء'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        // تحديث الحالة في App.jsx عن طريق الفلترة باستخدام معرف فريد (id أو date مع الوقت)
+    });
+
+    if (result.isConfirmed) {
+      try {
+        // إظهار مؤشر تحميل بسيط
+        Swal.showLoading();
+
+        // الاتصال بقاعدة البيانات الخارجية للحذف
+        const response = await CapacitorHttp.post({
+          url: 'https://maamoul-one.vercel.app/api/delete-item',
+          headers: { 'Content-Type': 'application/json' },
+          data: { 
+            id: logToDelete.id, // إرسال المعرف الفريد للحذف
+            type: 'production' 
+          }
+        });
+
+        // تحديث الحالة في App.jsx لإخفاء العنصر من الشاشة فوراً
         const updatedHistory = productionHistory.filter(item => 
            item.id !== logToDelete.id || item.date !== logToDelete.date
         );
-        
-        // إرسال البيانات المحدثة للمكون الأب ليتم حفظها في LocalStorage أو السيرفر
         setProductionHistory(updatedHistory);
-        
+
         Swal.fire({
           title: 'تم الحذف!',
-          text: 'تم تحديث قاعدة البيانات بنجاح.',
+          text: 'تم حذف البيانات من السيرفر وتحديث القائمة.',
           icon: 'success',
           timer: 1500,
           showConfirmButton: false
         });
+      } catch (error) {
+        Swal.fire('خطأ', 'فشل الحذف من قاعدة البيانات، تأكد من الاتصال بالإنترنت', 'error');
       }
-    });
+    }
   };
 
   // 2. تقرير اليوم السريع
@@ -123,7 +141,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img 
-            src="https://i.imgur.com/your_uploaded_image_id.png"
+            src={logoSrc}
             alt="Logo" 
             style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e67e22' }} 
             onError={(e) => { e.target.src = 'https://via.placeholder.com/60'; }}
@@ -187,7 +205,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
         ))}
       </div>
 
-      {/* تفاصيل الإنتاج مع زر الحذف */}
+      {/* تفاصيل الإنتاج مع زر الحذف المربوط بالـ API */}
       <div style={cardStyle}>
         <h3 style={cardTitleStyle}>
           <Calendar size={18} color="#3498db" /> تفاصيل آخر عمليات الإنتاج
@@ -229,7 +247,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
                     <button 
                       onClick={() => deleteProductionEntry(log)}
                       style={{ background: '#fff5f5', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '8px', borderRadius: '8px' }}
-                      title="حذف نهائي"
+                      title="حذف نهائي من السيرفر"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -244,7 +262,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
   );
 };
 
-// التنسيقات
+// التنسيقات الثابتة
 const cardStyle = { backgroundColor: '#fff', borderRadius: '24px', padding: '20px', marginBottom: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.02)' };
 const cardTitleStyle = { fontSize: '15px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#1e293b', fontWeight: 'bold' };
 const menuItemStyle = { backgroundColor: '#fff', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', cursor: 'pointer', transition: '0.2s' };
