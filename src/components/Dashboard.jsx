@@ -1,13 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { 
-  ShoppingCart, Tag, Factory, Warehouse, 
+  Factory, Warehouse, Trash2,
   BarChart3, TrendingUp, Calendar, BrainCircuit, Loader2, Clock
 } from 'lucide-react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { CapacitorHttp } from '@capacitor/core';
 import Swal from 'sweetalert2';
 
-const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = {} }) => {
+const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = {}, setProductionHistory }) => {
   const [isAiLoading, setIsAiLoading] = useState(false);
 
   // 1. معالجة بيانات الرسم البياني (آخر 7 عمليات إنتاج)
@@ -19,6 +19,29 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
       تكلفة: parseFloat(item.totalActualCost || 0)
     })).slice(-7); 
   }, [productionHistory]);
+
+  // وظيفة حذف عملية إنتاج
+  const deleteProductionEntry = (idx) => {
+    Swal.fire({
+      title: 'هل أنت متأكد؟',
+      text: "سيتم حذف هذه العملية من السجل",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'نعم، احذفها',
+      cancelButtonText: 'إلغاء'
+    }).then((result) => {
+      if (result.isConfirmed && setProductionHistory) {
+        const newHistory = [...productionHistory];
+        // الترتيب في الجدول معكوس (reverse)، لذا نحسب المؤشر الصحيح
+        const actualIndex = productionHistory.length - 1 - idx;
+        newHistory.splice(actualIndex, 1);
+        setProductionHistory(newHistory);
+        Swal.fire('تم الحذف!', 'تمت إزالة العملية من السجل.', 'success');
+      }
+    });
+  };
 
   // 2. تقرير اليوم السريع
   const generateTodayReport = () => {
@@ -67,7 +90,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
       const aiMessage = response.data?.message || "المحلل الذكي يراجع البيانات، حاول مجدداً.";
 
       Swal.fire({
-        title: '🤖 تحليل معمول الذكي',
+        title: '🤖 تحليل زاد الخير الذكي',
         text: aiMessage,
         icon: 'success',
         confirmButtonText: 'حسناً'
@@ -79,21 +102,28 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
     }
   };
 
+  // تم الإبقاء فقط على الإنتاج والمخزن كما طلبت
   const sections = [
     { id: 'production', title: 'تشغيل الإنتاج', icon: <Factory size={28} />, color: '#e67e22', desc: 'إضافة وردية جديدة' },
     { id: 'inventory', title: 'إدارة المخزن', icon: <Warehouse size={28} />, color: '#3498db', desc: 'خامات ومنتجات' },
-    { id: 'purchases', title: 'المشتريات', icon: <ShoppingCart size={28} />, color: '#9b59b6', desc: 'سجل الفواتير' },
-    { id: 'sales', title: 'المبيعات', icon: <Tag size={28} />, color: '#2ecc71', desc: 'حركة البيع' },
   ];
 
   return (
     <div style={{ direction: 'rtl', fontFamily: 'Tajawal, sans-serif' }}>
       
-      {/* الهيدر العلوي */}
+      {/* الهيدر العلوي - تم دمج الشعار هنا */}
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
-        <div>
-          <h1 style={{ fontSize: '1.5rem', color: '#1e293b', margin: 0 }}>نظام <span style={{ color: '#e67e22' }}>راق</span> الذكي</h1>
-          <p style={{ color: '#64748b', fontSize: '12px' }}>نظرة عامة على حالة المصنع</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img 
+            src="https://i.imgur.com/your_uploaded_image_id.png" // ملاحظة: يجب وضع رابط الصورة المرفوعة هنا
+            alt="Logo" 
+            style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e67e22' }} 
+            onError={(e) => { e.target.src = 'https://via.placeholder.com/60'; }} // صورة بديلة في حال فشل التحميل
+          />
+          <div>
+            <h1 style={{ fontSize: '1.3rem', color: '#1e293b', margin: 0, fontWeight: 'bold' }}>زاد الخير <span style={{ color: '#e67e22' }}>للصناعات الغذائية</span></h1>
+            <p style={{ color: '#64748b', fontSize: '11px' }}>نظرة عامة على حالة المصنع</p>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button onClick={analyzeWithAI} disabled={isAiLoading} style={aiButtonStyle}>
@@ -130,7 +160,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
         </div>
       </div>
 
-      {/* أزرار الانتقال للأقسام */}
+      {/* أزرار الانتقال للأقسام - عرض قسمين فقط الآن */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px', marginBottom: '25px' }}>
         {sections.map((sec) => (
           <div 
@@ -155,7 +185,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
           <Calendar size={18} color="#3498db" /> تفاصيل آخر عمليات الإنتاج
         </h3>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right', minWidth: '400px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right', minWidth: '450px' }}>
             <thead>
               <tr style={{ color: '#94a3b8', fontSize: '11px', borderBottom: '1px solid #f1f5f9' }}>
                 <th style={{ padding: '10px 5px' }}>التاريخ والوقت</th>
@@ -163,6 +193,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
                 <th style={{ padding: '10px 5px' }}>الكمية</th>
                 <th style={{ padding: '10px 5px' }}>سعر الكرتونة</th>
                 <th style={{ padding: '10px 5px' }}>الإجمالي</th>
+                <th style={{ padding: '10px 5px' }}>إجراء</th>
               </tr>
             </thead>
             <tbody>
@@ -185,6 +216,14 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
                   </td>
                   <td style={{ padding: '10px 5px', color: '#10b981', fontWeight: 'bold' }}>
                     {log.totalActualCost} ج
+                  </td>
+                  <td style={{ padding: '10px 5px' }}>
+                    <button 
+                      onClick={() => deleteProductionEntry(idx)}
+                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '5px' }}
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </td>
                 </tr>
               ))}
