@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Factory, Save, ArrowLeft, AlertTriangle, Box, Info, Calendar, Clock, Plus, Trash2 } from 'lucide-react';
+import { Factory, Save, ArrowLeft, AlertTriangle, Box, Info, Calendar, Clock, Plus, Trash2, Layers, Zap } from 'lucide-react';
 
 const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, setStock }) => {
   const [formData, setFormData] = useState({
@@ -16,7 +16,6 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
   const shifts = ['الأولى', 'الثانية', 'السهرة', 'إضافي'];
 
   const handleChange = (e, category, field, index = null) => {
-    // التأكد من تحويل القيمة لرقم إذا كان النوع number
     const value = e.target.type === 'number' ? (e.target.value === '' ? 0 : parseFloat(e.target.value)) : e.target.value;
     
     if (category === 'ingredients') {
@@ -54,7 +53,6 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
     let totalActualCost = 0;
     const updatedStock = JSON.parse(JSON.stringify(stock || []));
 
-    // 1. حساب تكلفة الخامات المسحوبة
     for (const [ingName, requiredQty] of Object.entries(formData.ingredients)) {
       if (requiredQty <= 0) continue;
       
@@ -87,7 +85,6 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
       }
     }
 
-    // 2. حساب تكلفة الكرتونة
     const totalProductionUnits = formData.products.reduce((sum, p) => sum + (parseFloat(p.quantity) || 0), 0);
     
     if (totalProductionUnits <= 0) {
@@ -97,7 +94,6 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
 
     const costPerCarton = totalActualCost / totalProductionUnits;
 
-    // 3. تحديث المخزن بالمنتج الجديد
     formData.products.forEach(prod => {
       if (prod.quantity <= 0) return;
 
@@ -126,7 +122,6 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
 
     setStock(updatedStock);
     
-    // 4. إرسال البيانات النهائية للنظام الأب
     onSaveProduction({ 
       ...formData, 
       totalActualCost: totalActualCost.toFixed(2),
@@ -149,100 +144,170 @@ const ProductionManager = ({ stock = [], onSaveProduction, onSaveWaste, onBack, 
     if (onBack) onBack();
   };
 
+  // أنماط التصميم المحسنة
+  const inputStyle = {
+    width: '100%',
+    padding: '12px 15px',
+    borderRadius: '12px',
+    border: '2px solid #e2e8f0',
+    fontSize: '18px',
+    fontWeight: 'bold',
+    textAlign: 'center',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+    color: '#1e293b'
+  };
+
+  const cardStyle = {
+    backgroundColor: '#fff',
+    borderRadius: '24px',
+    padding: '20px',
+    marginBottom: '20px',
+    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)'
+  };
+
   return (
-    <div className="production-manager" style={{ direction: 'rtl', padding: '15px', backgroundColor: '#f8fafd', minHeight: '100vh' }}>
-      {/* الرأس */}
-      <div style={{ backgroundColor: '#fff', borderRadius: '20px', padding: '20px', marginBottom: '15px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h2 style={{ margin: 0, color: '#1e293b' }}>تشغيل الإنتاج</h2>
-          <span style={{ color: '#f59e0b', fontSize: '14px' }}><Factory size={16} /> قسم التصنيع وحساب التكلفة</span>
+    <div className="production-manager" style={{ direction: 'rtl', padding: '20px', backgroundColor: '#f1f5f9', minHeight: '100vh', fontFamily: 'sans-serif' }}>
+      
+      {/* رأس الصفحة - معلومات الوردية */}
+      <div style={cardStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
+          <Factory size={28} color="#3b82f6" />
+          <h2 style={{ margin: 0, color: '#1e293b', fontSize: '24px' }}>تشغيل الإنتاج والتكلفة</h2>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-          <input type="date" value={formData.date} onChange={(e) => handleChange(e, 'info', 'date')} style={{ padding: '5px', borderRadius: '8px', border: '1px solid #ddd' }} />
-          <select value={formData.shift} onChange={(e) => handleChange(e, 'info', 'shift')} style={{ padding: '5px', borderRadius: '8px', border: '1px solid #ddd' }}>
-            {shifts.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+          <div style={{ position: 'relative' }}>
+            <label style={{ display: 'block', fontSize: '14px', marginBottom: '5px', color: '#64748b', fontWeight: '600' }}>
+              <Calendar size={14} /> تاريخ التشغيل
+            </label>
+            <input 
+              type="date" 
+              value={formData.date} 
+              onChange={(e) => handleChange(e, 'info', 'date')} 
+              style={{ ...inputStyle, textAlign: 'right' }} 
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', marginBottom: '5px', color: '#64748b', fontWeight: '600' }}>
+              <Clock size={14} /> الوردية
+            </label>
+            <select 
+              value={formData.shift} 
+              onChange={(e) => handleChange(e, 'info', 'shift')} 
+              style={{ ...inputStyle, appearance: 'none', backgroundColor: '#fff' }}
+            >
+              {shifts.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* مدخلات الخامات */}
-      <div style={{ backgroundColor: '#fff', borderRadius: '20px', padding: '15px', marginBottom: '15px' }}>
-        <h3 style={{ color: '#64748b', fontSize: '16px', marginBottom: '10px' }}>الخامات المستهلكة</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
+      {/* قسم الخامات - أشرطة كبيرة */}
+      <div style={cardStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+          <Zap size={20} color="#f59e0b" />
+          <h3 style={{ margin: 0, color: '#475569', fontSize: '18px' }}>كميات الخامات المستهلكة</h3>
+        </div>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '15px' }}>
           {Object.keys(formData.ingredients).map(ing => {
             const itemInStock = (stock || []).find(s => s.name && s.name.trim() === ing.trim());
             const balance = itemInStock ? itemInStock.balance : 0;
             return (
-              <div key={ing} style={{ background: '#f1f5f9', padding: '10px', borderRadius: '12px', textAlign: 'center' }}>
-                <div style={{ fontSize: '12px', fontWeight: 'bold' }}>{ing}</div>
+              <div key={ing} style={{ background: '#f8fafc', padding: '15px', borderRadius: '18px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '15px', fontWeight: 'bold', marginBottom: '8px', color: '#334155' }}>{ing}</div>
                 <input 
                   type="number" 
                   value={formData.ingredients[ing] || ''}
                   placeholder="0"
                   onChange={(e) => handleChange(e, 'ingredients', ing)}
-                  style={{ width: '100%', textAlign: 'center', border: 'none', background: 'transparent', fontSize: '16px', outline: 'none', borderBottom: '1px solid #cbd5e1' }}
+                  style={inputStyle}
+                  onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                  onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
                 />
-                <div style={{ fontSize: '10px', color: balance > 0 ? '#10b981' : '#ef4444' }}>متاح: {balance}</div>
+                <div style={{ fontSize: '12px', marginTop: '8px', color: balance > 0 ? '#10b981' : '#ef4444', fontWeight: '600' }}>
+                  المتوفر: {balance}
+                </div>
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* مدخلات الإنتاج (عدد الكراتين) */}
-      <div style={{ backgroundColor: '#1e293b', borderRadius: '20px', padding: '20px', color: '#fff' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
-          <h3 style={{ margin: 0, color: '#f59e0b' }}>الإنتاج المحقق (عدد الكراتين)</h3>
-          <button onClick={addProductField} style={{ background: '#334155', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '8px', cursor: 'pointer' }}>
-            <Plus size={14} /> إضافة منتج
+      {/* قسم المنتج النهائي */}
+      <div style={{ ...cardStyle, backgroundColor: '#1e293b', color: '#fff' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Box size={20} color="#f59e0b" />
+            <h3 style={{ margin: 0, color: '#f8fafc', fontSize: '18px' }}>الإنتاج الفعلي (كرتونة)</h3>
+          </div>
+          <button 
+            onClick={addProductField} 
+            style={{ background: '#334155', color: '#fff', border: 'none', padding: '8px 15px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: '600' }}
+          >
+            <Plus size={16} /> إضافة منتج
           </button>
         </div>
 
         {formData.products.map((prod, index) => (
-          <div key={index} style={{ display: 'flex', gap: '10px', marginBottom: '10px', alignItems: 'flex-end' }}>
+          <div key={index} style={{ display: 'flex', gap: '15px', marginBottom: '15px', alignItems: 'flex-end', backgroundColor: '#2d3a4f', padding: '15px', borderRadius: '15px' }}>
             <div style={{ flex: 2 }}>
-              <label style={{ fontSize: '11px' }}>اسم المنتج</label>
+              <label style={{ fontSize: '13px', color: '#94a3b8', display: 'block', marginBottom: '5px' }}>اسم المنتج</label>
               <input 
                 type="text" 
                 value={prod.name} 
                 onChange={(e) => handleChange(e, 'products', 'name', index)}
-                style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #475569', background: '#2d3a4f', color: '#fff' }}
+                style={{ ...inputStyle, border: '1px solid #475569', background: '#1e293b', color: '#fff', textAlign: 'right' }}
               />
             </div>
             <div style={{ flex: 1 }}>
-              <label style={{ fontSize: '11px' }}>عدد الكراتين</label>
+              <label style={{ fontSize: '13px', color: '#94a3b8', display: 'block', marginBottom: '5px' }}>الكمية</label>
               <input 
                 type="number" 
                 value={prod.quantity || ''} 
                 onChange={(e) => handleChange(e, 'products', 'quantity', index)}
                 placeholder="0"
-                style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #475569', background: '#2d3a4f', color: '#fff' }}
+                style={{ ...inputStyle, border: '1px solid #475569', background: '#1e293b', color: '#fff' }}
               />
             </div>
             {index > 0 && (
-              <button onClick={() => removeProductField(index)} style={{ background: 'transparent', border: 'none', color: '#ef4444' }}><Trash2 size={20} /></button>
+              <button 
+                onClick={() => removeProductField(index)} 
+                style={{ background: '#ef4444', border: 'none', color: '#fff', padding: '12px', borderRadius: '12px', cursor: 'pointer' }}
+              >
+                <Trash2 size={20} />
+              </button>
             )}
           </div>
         ))}
 
-        <div style={{ marginTop: '15px', borderTop: '1px solid #334155', paddingTop: '10px' }}>
-          <label style={{ fontSize: '12px' }}>كمية الهالك (بالكرتونة):</label>
+        <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #334155' }}>
+          <label style={{ fontSize: '14px', color: '#f59e0b', fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>
+            <AlertTriangle size={14} /> كمية الهالك الكلية:
+          </label>
           <input 
             type="number" 
             value={formData.wasteQty || ''}
             onChange={(e) => handleChange(e, 'info', 'wasteQty')}
-            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: 'none', marginTop: '5px', color: '#000' }}
-            placeholder="أدخل كمية الهالك إن وجدت"
+            style={{ ...inputStyle, backgroundColor: '#fff', color: '#1e293b' }}
+            placeholder="أدخل الهالك بالكرتونة"
           />
         </div>
 
-        <button onClick={handleProcessProduction} style={{ width: '100%', padding: '15px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '16px', marginTop: '20px', cursor: 'pointer' }}>
-          حساب التكلفة وترحيل للمخزن
+        <button 
+          onClick={handleProcessProduction} 
+          style={{ width: '100%', padding: '18px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '15px', fontWeight: 'bold', fontSize: '18px', marginTop: '25px', cursor: 'pointer', boxShadow: '0 10px 15px -3px rgba(16, 185, 129, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
+        >
+          <Save size={20} /> ترحيل البيانات وحساب التكلفة
         </button>
       </div>
 
-      <button onClick={onBack} style={{ width: '100%', marginTop: '10px', background: 'none', border: '1px solid #ddd', padding: '10px', borderRadius: '12px', color: '#64748b', cursor: 'pointer' }}>
-        <ArrowLeft size={16} /> العودة للرئيسية
+      <button 
+        onClick={onBack} 
+        style={{ width: '100%', marginTop: '10px', background: 'transparent', border: '2px solid #cbd5e1', padding: '15px', borderRadius: '15px', color: '#64748b', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+      >
+        <ArrowLeft size={18} /> العودة للشاشة الرئيسية
       </button>
     </div>
   );
