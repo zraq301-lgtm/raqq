@@ -166,28 +166,6 @@ const App = () => {
     }
   };
 
-  // وظيفة المسح الشامل (للزوار المضاف حديثاً)
-  const clearAllData = async () => {
-    const result = await Swal.fire({
-      title: 'هل أنت متأكد؟',
-      text: "سيتم حذف جميع البيانات المحلية!",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'نعم، امسح الكل',
-      cancelButtonText: 'إلغاء'
-    });
-
-    if (result.isConfirmed) {
-      setStock([]);
-      setProductionHistory([]);
-      await Preferences.clear();
-      localStorage.clear();
-      Swal.fire('تم الحذف!', 'تم مسح البيانات المحلية بنجاح.', 'success');
-    }
-  };
-
   // --- 3. دورة حياة النظام ---
   useEffect(() => {
     const bootSystem = async () => {
@@ -221,7 +199,8 @@ const App = () => {
         setActivePage={setActivePage} 
         productionHistory={productionHistory} 
         stock={stock} 
-        stats={stats} 
+        stats={stats}
+        onDelete={handleDelete} // تمرير دالة الحذف للرئيسية
       />
     ),
     inventory: (
@@ -266,8 +245,6 @@ const App = () => {
         <NavButton active={activePage === 'dashboard'} icon="📊" label="الرئيسية" onClick={() => setActivePage('dashboard')} />
         <NavButton active={activePage === 'production'} icon="🏭" label="الإنتاج" onClick={() => setActivePage('production')} />
         <NavButton active={activePage === 'inventory'} icon="📦" label="المخزن" onClick={() => setActivePage('inventory')} />
-        {/* زرار الحذف الجديد */}
-        <NavButton active={false} icon="🗑️" label="حذف الكل" onClick={clearAllData} color="#e11d48" />
       </nav>
     </div>
   );
