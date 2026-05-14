@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { 
   ShoppingCart, Tag, Factory, Warehouse, 
-  BarChart3, TrendingUp, Calendar, BrainCircuit, Loader2, Clock
+  BarChart3, TrendingUp, Calendar, BrainCircuit, Loader2, Clock, Trash2
 } from 'lucide-react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { CapacitorHttp } from '@capacitor/core';
@@ -82,7 +82,6 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
     }
   };
 
-  // تم الإبقاء على الإنتاج والمخزن فقط
   const sections = [
     { id: 'production', title: 'تشغيل الإنتاج', icon: <Factory size={28} />, color: '#e67e22', desc: 'إضافة وردية جديدة' },
     { id: 'inventory', title: 'إدارة المخزن', icon: <Warehouse size={28} />, color: '#3498db', desc: 'خامات ومنتجات' },
@@ -166,8 +165,8 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
                 <th style={{ padding: '10px 5px' }}>التاريخ والوقت</th>
                 <th style={{ padding: '10px 5px' }}>المنتج</th>
                 <th style={{ padding: '10px 5px' }}>الكمية</th>
-                <th style={{ padding: '10px 5px' }}>سعر الكرتونة</th>
                 <th style={{ padding: '10px 5px' }}>الإجمالي</th>
+                <th style={{ padding: '10px 5px' }}>حذف</th>
               </tr>
             </thead>
             <tbody>
@@ -185,11 +184,16 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
                   <td style={{ padding: '10px 5px' }}>
                     {log.products?.[0]?.quantity || 0} كرتونة
                   </td>
-                  <td style={{ padding: '10px 5px', color: '#3498db' }}>
-                    {log.actualUnitCost || '0.00'} ج
-                  </td>
                   <td style={{ padding: '10px 5px', color: '#10b981', fontWeight: 'bold' }}>
                     {log.totalActualCost} ج
+                  </td>
+                  <td style={{ padding: '10px 5px' }}>
+                    <button 
+                      onClick={() => Swal.fire('تنبيه', 'هل تريد حذف هذا السجل؟', 'question')}
+                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+                    >
+                      <Trash2 size={18} />
+                    </button>
                   </td>
                 </tr>
               ))}
