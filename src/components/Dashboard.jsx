@@ -20,25 +20,34 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
     })).slice(-7); 
   }, [productionHistory]);
 
-  // وظيفة حذف عملية إنتاج
-  const deleteProductionEntry = (idx) => {
+  // وظيفة حذف عملية إنتاج مرتبطة بـ App.jsx
+  const deleteProductionEntry = (logToDelete) => {
     Swal.fire({
       title: 'هل أنت متأكد؟',
-      text: "سيتم حذف هذه العملية من السجل",
+      text: "سيتم حذف هذه العملية نهائياً من قاعدة البيانات والسجل",
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
       cancelButtonColor: '#64748b',
-      confirmButtonText: 'نعم، احذفها',
+      confirmButtonText: 'نعم، احذف نهائياً',
       cancelButtonText: 'إلغاء'
     }).then((result) => {
-      if (result.isConfirmed && setProductionHistory) {
-        const newHistory = [...productionHistory];
-        // الترتيب في الجدول معكوس (reverse)، لذا نحسب المؤشر الصحيح
-        const actualIndex = productionHistory.length - 1 - idx;
-        newHistory.splice(actualIndex, 1);
-        setProductionHistory(newHistory);
-        Swal.fire('تم الحذف!', 'تمت إزالة العملية من السجل.', 'success');
+      if (result.isConfirmed) {
+        // تحديث الحالة في App.jsx عن طريق الفلترة باستخدام معرف فريد (id أو date مع الوقت)
+        const updatedHistory = productionHistory.filter(item => 
+           item.id !== logToDelete.id || item.date !== logToDelete.date
+        );
+        
+        // إرسال البيانات المحدثة للمكون الأب ليتم حفظها في LocalStorage أو السيرفر
+        setProductionHistory(updatedHistory);
+        
+        Swal.fire({
+          title: 'تم الحذف!',
+          text: 'تم تحديث قاعدة البيانات بنجاح.',
+          icon: 'success',
+          timer: 1500,
+          showConfirmButton: false
+        });
       }
     });
   };
@@ -102,7 +111,6 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
     }
   };
 
-  // تم الإبقاء فقط على الإنتاج والمخزن كما طلبت
   const sections = [
     { id: 'production', title: 'تشغيل الإنتاج', icon: <Factory size={28} />, color: '#e67e22', desc: 'إضافة وردية جديدة' },
     { id: 'inventory', title: 'إدارة المخزن', icon: <Warehouse size={28} />, color: '#3498db', desc: 'خامات ومنتجات' },
@@ -111,14 +119,14 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
   return (
     <div style={{ direction: 'rtl', fontFamily: 'Tajawal, sans-serif' }}>
       
-      {/* الهيدر العلوي - تم دمج الشعار هنا */}
+      {/* الهيدر العلوي */}
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img 
-            src="https://i.imgur.com/your_uploaded_image_id.png" // ملاحظة: يجب وضع رابط الصورة المرفوعة هنا
+            src="https://i.imgur.com/your_uploaded_image_id.png"
             alt="Logo" 
             style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e67e22' }} 
-            onError={(e) => { e.target.src = 'https://via.placeholder.com/60'; }} // صورة بديلة في حال فشل التحميل
+            onError={(e) => { e.target.src = 'https://via.placeholder.com/60'; }}
           />
           <div>
             <h1 style={{ fontSize: '1.3rem', color: '#1e293b', margin: 0, fontWeight: 'bold' }}>زاد الخير <span style={{ color: '#e67e22' }}>للصناعات الغذائية</span></h1>
@@ -160,7 +168,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
         </div>
       </div>
 
-      {/* أزرار الانتقال للأقسام - عرض قسمين فقط الآن */}
+      {/* أزرار الأقسام */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px', marginBottom: '25px' }}>
         {sections.map((sec) => (
           <div 
@@ -179,7 +187,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
         ))}
       </div>
 
-      {/* آخر العمليات المحدثة */}
+      {/* تفاصيل الإنتاج مع زر الحذف */}
       <div style={cardStyle}>
         <h3 style={cardTitleStyle}>
           <Calendar size={18} color="#3498db" /> تفاصيل آخر عمليات الإنتاج
@@ -198,7 +206,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
             </thead>
             <tbody>
               {productionHistory.slice(-5).reverse().map((log, idx) => (
-                <tr key={idx} style={{ fontSize: '12px', borderBottom: '1px solid #f8fafc' }}>
+                <tr key={log.id || idx} style={{ fontSize: '12px', borderBottom: '1px solid #f8fafc' }}>
                   <td style={{ padding: '10px 5px', color: '#64748b' }}>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span>{log.date}</span>
@@ -219,8 +227,9 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
                   </td>
                   <td style={{ padding: '10px 5px' }}>
                     <button 
-                      onClick={() => deleteProductionEntry(idx)}
-                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '5px' }}
+                      onClick={() => deleteProductionEntry(log)}
+                      style={{ background: '#fff5f5', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '8px', borderRadius: '8px' }}
+                      title="حذف نهائي"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -235,33 +244,11 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
   );
 };
 
-// --- التنسيقات الثابتة ---
-const cardStyle = {
-  backgroundColor: '#fff', borderRadius: '24px', padding: '20px', 
-  marginBottom: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.02)'
-};
-
-const cardTitleStyle = {
-  fontSize: '15px', marginBottom: '20px', display: 'flex', 
-  alignItems: 'center', gap: '10px', color: '#1e293b', fontWeight: 'bold'
-};
-
-const menuItemStyle = {
-  backgroundColor: '#fff', borderRadius: '20px', padding: '20px', 
-  display: 'flex', flexDirection: 'column', justifyContent: 'center',
-  boxShadow: '0 4px 12px rgba(0,0,0,0.03)', cursor: 'pointer', transition: '0.2s'
-};
-
-const aiButtonStyle = {
-  background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', 
-  color: '#fff', border: 'none', padding: '12px 18px', borderRadius: '15px', 
-  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold'
-};
-
-const reportButtonStyle = {
-  background: '#1e293b', color: '#fff', border: 'none', 
-  padding: '12px 18px', borderRadius: '15px', cursor: 'pointer', 
-  display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500'
-};
+// التنسيقات
+const cardStyle = { backgroundColor: '#fff', borderRadius: '24px', padding: '20px', marginBottom: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.02)' };
+const cardTitleStyle = { fontSize: '15px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#1e293b', fontWeight: 'bold' };
+const menuItemStyle = { backgroundColor: '#fff', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', cursor: 'pointer', transition: '0.2s' };
+const aiButtonStyle = { background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', color: '#fff', border: 'none', padding: '12px 18px', borderRadius: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' };
+const reportButtonStyle = { background: '#1e293b', color: '#fff', border: 'none', padding: '12px 18px', borderRadius: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500' };
 
 export default Dashboard;
