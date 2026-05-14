@@ -7,6 +7,9 @@ import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, A
 import { CapacitorHttp } from '@capacitor/core';
 import Swal from 'sweetalert2';
 
+// استيراد الصورة من المسار المحدد
+import LogoImage from '../services/icon-foreground.png';
+
 const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = {} }) => {
   const [isAiLoading, setIsAiLoading] = useState(false);
 
@@ -67,7 +70,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
       const aiMessage = response.data?.message || "المحلل الذكي يراجع البيانات، حاول مجدداً.";
 
       Swal.fire({
-        title: '🤖 تحليل معمول الذكي',
+        title: '🤖 تحليل زاد الخير الذكي',
         text: aiMessage,
         icon: 'success',
         confirmButtonText: 'حسناً'
@@ -79,29 +82,31 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
     }
   };
 
+  // تم الإبقاء على الإنتاج والمخزن فقط
   const sections = [
     { id: 'production', title: 'تشغيل الإنتاج', icon: <Factory size={28} />, color: '#e67e22', desc: 'إضافة وردية جديدة' },
     { id: 'inventory', title: 'إدارة المخزن', icon: <Warehouse size={28} />, color: '#3498db', desc: 'خامات ومنتجات' },
-    { id: 'purchases', title: 'المشتريات', icon: <ShoppingCart size={28} />, color: '#9b59b6', desc: 'سجل الفواتير' },
-    { id: 'sales', title: 'المبيعات', icon: <Tag size={28} />, color: '#2ecc71', desc: 'حركة البيع' },
   ];
 
   return (
     <div style={{ direction: 'rtl', fontFamily: 'Tajawal, sans-serif' }}>
       
-      {/* الهيدر العلوي */}
+      {/* الهيدر العلوي المطور */}
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
-        <div>
-          <h1 style={{ fontSize: '1.5rem', color: '#1e293b', margin: 0 }}>نظام <span style={{ color: '#e67e22' }}>راق</span> الذكي</h1>
-          <p style={{ color: '#64748b', fontSize: '12px' }}>نظرة عامة على حالة المصنع</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img src={LogoImage} alt="Zad Al Khair Logo" style={{ width: '45px', height: '45px', borderRadius: '10px' }} />
+          <div>
+            <h1 style={{ fontSize: '1.3rem', color: '#1e293b', margin: 0, fontWeight: '900' }}>زاد <span style={{ color: '#e67e22' }}>الخير</span></h1>
+            <p style={{ color: '#64748b', fontSize: '10px', margin: 0 }}>للصناعات الغذائية</p>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '8px' }}>
           <button onClick={analyzeWithAI} disabled={isAiLoading} style={aiButtonStyle}>
-            {isAiLoading ? <Loader2 size={16} className="animate-spin" /> : <BrainCircuit size={16} />} 
+            {isAiLoading ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} 
             AI
           </button>
           <button onClick={generateTodayReport} style={reportButtonStyle}>
-            <BarChart3 size={16} /> التقرير
+            <BarChart3 size={14} /> التقرير
           </button>
         </div>
       </header>
@@ -215,14 +220,14 @@ const menuItemStyle = {
 
 const aiButtonStyle = {
   background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', 
-  color: '#fff', border: 'none', padding: '12px 18px', borderRadius: '15px', 
-  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold'
+  color: '#fff', border: 'none', padding: '10px 14px', borderRadius: '12px', 
+  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', fontSize: '12px'
 };
 
 const reportButtonStyle = {
   background: '#1e293b', color: '#fff', border: 'none', 
-  padding: '12px 18px', borderRadius: '15px', cursor: 'pointer', 
-  display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500'
+  padding: '10px 14px', borderRadius: '12px', cursor: 'pointer', 
+  display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '500', fontSize: '12px'
 };
 
 export default Dashboard;
