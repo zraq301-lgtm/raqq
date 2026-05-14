@@ -45,6 +45,35 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
     });
   };
 
+  // وظيفة الحذف النهائي من قاعدة البيانات
+  const handleDelete = async (productionId) => {
+    const result = await Swal.fire({
+      title: 'هل أنت متأكد؟',
+      text: "سيتم حذف هذا السجل نهائياً من قاعدة البيانات!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'نعم، احذف',
+      cancelButtonText: 'إلغاء'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await CapacitorHttp.delete({
+          url: `https://maamoul-one.vercel.app/api/production/${productionId}`
+        });
+        
+        Swal.fire('تم الحذف!', 'تمت إزالة السجل بنجاح.', 'success').then(() => {
+          // هنا يفضل استدعاء دالة لتحديث البيانات من الأب لكي يختفي العنصر فوراً
+          window.location.reload(); 
+        });
+      } catch (error) {
+        Swal.fire('خطأ', 'فشل عملية الحذف من الخادم', 'error');
+      }
+    }
+  };
+
   // 3. تحليل الذكاء الاصطناعي (AI)
   const analyzeWithAI = async () => {
     if (!productionHistory.length) {
@@ -90,7 +119,6 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
   return (
     <div style={{ direction: 'rtl', fontFamily: 'Tajawal, sans-serif' }}>
       
-      {/* الهيدر العلوي المطور */}
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img src={LogoImage} alt="Zad Al Khair Logo" style={{ width: '45px', height: '45px', borderRadius: '10px' }} />
@@ -110,7 +138,6 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
         </div>
       </header>
 
-      {/* الرسم البياني */}
       <div style={cardStyle}>
         <h3 style={cardTitleStyle}>
           <TrendingUp size={18} color="#e67e22" /> منحنى الإنتاج الأخير
@@ -134,7 +161,6 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
         </div>
       </div>
 
-      {/* أزرار الانتقال للأقسام */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px', marginBottom: '25px' }}>
         {sections.map((sec) => (
           <div 
@@ -153,7 +179,6 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
         ))}
       </div>
 
-      {/* آخر العمليات المحدثة */}
       <div style={cardStyle}>
         <h3 style={cardTitleStyle}>
           <Calendar size={18} color="#3498db" /> تفاصيل آخر عمليات الإنتاج
@@ -189,7 +214,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
                   </td>
                   <td style={{ padding: '10px 5px' }}>
                     <button 
-                      onClick={() => Swal.fire('تنبيه', 'هل تريد حذف هذا السجل؟', 'question')}
+                      onClick={() => handleDelete(log.id)}
                       style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
                     >
                       <Trash2 size={18} />
@@ -205,7 +230,6 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
   );
 };
 
-// --- التنسيقات الثابتة ---
 const cardStyle = {
   backgroundColor: '#fff', borderRadius: '24px', padding: '20px', 
   marginBottom: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.02)'
