@@ -7,9 +7,6 @@ import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, A
 import { CapacitorHttp } from '@capacitor/core';
 import Swal from 'sweetalert2';
 
-// استيراد الصورة من المسار المحلي
-import logoSrc from './resources/icon-foreground.png';
-
 const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = {}, setProductionHistory }) => {
   const [isAiLoading, setIsAiLoading] = useState(false);
 
@@ -141,7 +138,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img 
-            src={logoSrc}
+            src="https://i.imgur.com/your_uploaded_image_id.png"
             alt="Logo" 
             style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e67e22' }} 
             onError={(e) => { e.target.src = 'https://via.placeholder.com/60'; }}
