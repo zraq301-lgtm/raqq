@@ -117,18 +117,14 @@ const App = () => {
     }
   };
 
-  // --- دالة حفظ الإنتاج الجديد (New Function to handle Production saving) ---
+  // --- دالة حفظ الإنتاج الجديد ---
   const handleSaveProduction = async (newProduction) => {
-    // 1. تحديث الحالة المحلية للتاريخ (History)
     const updatedHistory = [newProduction, ...productionHistory];
     setProductionHistory(updatedHistory);
     
-    // 2. الحفظ المحلي والمزامنة للسجل
     await storage.save('productionHistory', updatedHistory);
-    await syncData('productionData', [newProduction]); // مزامنة السجل الجديد فقط أو السجل كاملاً
+    await syncData('productionData', [newProduction]);
 
-    // 3. بما أن الإنتاج قام بتحديث المخزن محلياً عبر setStock، نقوم بمزامنة المخزن أيضاً لضمان ثبات البيانات
-    // نستخدم الحالة الحالية للمخزن لأن ProductionManager استدعى setStock بالفعل
     await storage.save('stock', stock);
     await syncData('stock', stock);
   };
@@ -167,6 +163,28 @@ const App = () => {
           data: { collectionName: 'productionData', id }
         });
       } catch (e) {}
+    }
+  };
+
+  // وظيفة المسح الشامل (للزوار المضاف حديثاً)
+  const clearAllData = async () => {
+    const result = await Swal.fire({
+      title: 'هل أنت متأكد؟',
+      text: "سيتم حذف جميع البيانات المحلية!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'نعم، امسح الكل',
+      cancelButtonText: 'إلغاء'
+    });
+
+    if (result.isConfirmed) {
+      setStock([]);
+      setProductionHistory([]);
+      await Preferences.clear();
+      localStorage.clear();
+      Swal.fire('تم الحذف!', 'تم مسح البيانات المحلية بنجاح.', 'success');
     }
   };
 
@@ -248,15 +266,17 @@ const App = () => {
         <NavButton active={activePage === 'dashboard'} icon="📊" label="الرئيسية" onClick={() => setActivePage('dashboard')} />
         <NavButton active={activePage === 'production'} icon="🏭" label="الإنتاج" onClick={() => setActivePage('production')} />
         <NavButton active={activePage === 'inventory'} icon="📦" label="المخزن" onClick={() => setActivePage('inventory')} />
+        {/* زرار الحذف الجديد */}
+        <NavButton active={false} icon="🗑️" label="حذف الكل" onClick={clearAllData} color="#e11d48" />
       </nav>
     </div>
   );
 };
 
-const NavButton = ({ active, icon, label, onClick }) => (
+const NavButton = ({ active, icon, label, onClick, color }) => (
   <button onClick={onClick} style={{
     border: 'none', background: 'none', display: 'flex', flexDirection: 'column',
-    alignItems: 'center', color: active ? '#2563eb' : '#94a3b8', transition: '0.3s', cursor: 'pointer'
+    alignItems: 'center', color: color || (active ? '#2563eb' : '#94a3b8'), transition: '0.3s', cursor: 'pointer'
   }}>
     <span style={{ fontSize: '20px' }}>{icon}</span>
     <span style={{ fontSize: '12px', fontWeight: active ? 'bold' : 'normal' }}>{label}</span>
