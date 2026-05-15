@@ -117,33 +117,20 @@ const App = () => {
     }
   };
 
-  // --- دالة حفظ الإنتاج الجديد (تم التعديل لضمان عدم الاختفاء والترحيل للمخزن) ---
+  // --- دالة حفظ الإنتاج الجديد (تم الضبط لضمان المزامنة النهائية) ---
   const handleSaveProduction = async (newProduction) => {
-    // 1. تحديث سجل الإنتاج (إضافة الجديد للقديم لضمان عدم الاختفاء)
+    // 1. تحديث سجل الإنتاج
     const updatedHistory = [newProduction, ...productionHistory];
     setProductionHistory(updatedHistory);
     await storage.save('productionHistory', updatedHistory);
     
-    // 2. ترحيل المنتج النهائي للمخزن تلقائياً
-    let updatedStock = [...stock];
-    if (newProduction.products && newProduction.products.length > 0) {
-      newProduction.products.forEach(p => {
-        const productForStock = {
-          id: Date.now() + Math.random(),
-          name: p.name,
-          balance: parseFloat(p.quantity || 0),
-          price: parseFloat(newProduction.totalActualCost || 0) / parseFloat(p.quantity || 1)
-        };
-        updatedStock = groupItems([...updatedStock, productForStock]);
-      });
-    }
+    // 2. تحديث المخزن المحدث بالفعل من ProductionManager
+    // ملاحظة: الـ stock هنا سيأتي مخصوماً وجاهزاً لأننا نمرر setStock للـ ProductionManager
+    await storage.save('stock', stock);
 
-    setStock(updatedStock);
-    await storage.save('stock', updatedStock);
-
-    // 3. مزامنة البيانات مع السيرفر (إرسال العملية الجديدة فقط للسجل وتحديث المخزن كاملاً)
+    // 3. مزامنة البيانات (السجل الجديد + حالة المخزن النهائية)
     await syncData('productionData', [newProduction]);
-    await syncData('stock', updatedStock);
+    await syncData('stock', stock);
     
     Swal.fire('تم الحفظ', 'تم تسجيل الإنتاج وتحديث المخزن بنجاح', 'success');
   };
