@@ -10,7 +10,8 @@ import Swal from 'sweetalert2';
 // استيراد الصورة من المسار المحدد
 import LogoImage from '../services/icon-foreground.png';
 
-const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = {} }) => {
+// ملاحظة: أضفنا fetchData كبروبس لضمان تحديث App.jsx
+const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = {}, fetchData }) => {
   const [isAiLoading, setIsAiLoading] = useState(false);
 
   // 1. معالجة بيانات الرسم البياني
@@ -44,52 +45,57 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
     });
   };
 
-  // وظيفة الحذف المتوافقة مع كود الـ API الجديد
+  // وظيفة الحذف المتوافقة مع نظام API و App.jsx
   const handleDelete = async (productionId) => {
     if (!productionId) {
-        Swal.fire('خطأ', 'لم يتم العثور على معرف لهذا السجل', 'error');
+        Swal.fire('تنبيه', 'لم يتم العثور على معرف فريد لهذا السجل', 'warning');
         return;
     }
 
     const result = await Swal.fire({
-      title: 'هل أنت متأكد؟',
-      text: "سيتم حذف سجل الإنتاج هذا نهائياً من قاعدة البيانات!",
+      title: 'تأكيد الحذف',
+      text: "سيتم حذف السجل نهائياً من قاعدة البيانات والسحابة",
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
       cancelButtonColor: '#64748b',
-      confirmButtonText: 'نعم، احذف',
-      cancelButtonText: 'إلغاء'
+      confirmButtonText: 'إحذف السجل',
+      cancelButtonText: 'تراجع'
     });
 
     if (result.isConfirmed) {
       try {
-        // نستخدم POST لأنه الأضمن في إرسال البيانات (collectionName & id) للـ API الخاص بك
+        // نرسل الطلب للـ API وننتظر الرد الفعلي
         const response = await CapacitorHttp.post({
-          url: `https://maamoul-one.vercel.app/api/production`, // الرابط العام للـ API
+          url: `https://maamoul-one.vercel.app/api/production`, 
           headers: { 'Content-Type': 'application/json' },
           data: { 
-            collectionName: 'production', // تحديد اسم الجدول
-            id: productionId             // إرسال المعرف
+            collectionName: 'production',
+            id: productionId 
           }
         });
         
         if (response.data && response.data.success) {
             Swal.fire({
-              title: 'تم الحذف!',
-              text: 'تمت إزالة السجل بنجاح.',
+              title: 'تم بنجاح',
+              text: 'تم مسح البيانات من قاعدة البيانات',
               icon: 'success',
               timer: 1500,
               showConfirmButton: false
-            }).then(() => {
-              window.location.reload(); 
+            }).then(async () => {
+              // الأهم: استدعاء التحديث من App.jsx لضمان عدم عودة البيانات عند التنقل
+              if (typeof fetchData === 'function') {
+                await fetchData(); 
+              } else {
+                window.location.reload(); // حل احتياطي
+              }
             });
         } else {
-            throw new Error(response.data?.message || 'فشل الحذف');
+            throw new Error(response.data?.message || 'الخادم لم يستجب بطلب الحذف');
         }
       } catch (error) {
         console.error("Delete Error:", error);
-        Swal.fire('خطأ', 'فشل الحذف.. تأكد من تحديث كود الـ API على Vercel', 'error');
+        Swal.fire('خطأ في الاتصال', 'فشل الوصول للـ API، تأكد من تحديث الكود على Vercel', 'error');
       }
     }
   };
@@ -211,9 +217,9 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
                   <td style={{ padding: '10px 5px' }}>
                     <button 
                       onClick={() => handleDelete(log.id || log._id)}
-                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '5px' }}
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={20} />
                     </button>
                   </td>
                 </tr>
@@ -226,7 +232,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
   );
 };
 
-// التنسيقات
+// التنسيقات (بقيت كما هي لضمان عدم تغيير المظهر)
 const cardStyle = { backgroundColor: '#fff', borderRadius: '24px', padding: '20px', marginBottom: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.02)' };
 const cardTitleStyle = { fontSize: '15px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#1e293b', fontWeight: 'bold' };
 const menuItemStyle = { backgroundColor: '#fff', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', cursor: 'pointer' };
