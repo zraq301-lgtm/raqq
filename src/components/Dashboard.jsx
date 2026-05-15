@@ -13,7 +13,7 @@ import LogoImage from '../services/icon-foreground.png';
 const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = {} }) => {
   const [isAiLoading, setIsAiLoading] = useState(false);
 
-  // 1. معالجة بيانات الرسم البياني (آخر 7 عمليات إنتاج)
+  // 1. معالجة بيانات الرسم البياني
   const chartData = useMemo(() => {
     if (!productionHistory || !Array.isArray(productionHistory)) return [];
     return productionHistory.map(item => ({
@@ -28,7 +28,6 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
     const today = new Date().toISOString().split('T')[0];
     const todayProd = productionHistory.filter(p => p.date === today);
     const totalCost = todayProd.reduce((sum, p) => sum + parseFloat(p.totalActualCost || 0), 0);
-    
     const lowStockCount = stock.filter(i => parseFloat(i.balance || i.quantity || 0) < 5).length;
 
     Swal.fire({
@@ -45,11 +44,16 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
     });
   };
 
-  // وظيفة الحذف النهائي من قاعدة البيانات (تم ضبطها)
+  // وظيفة الحذف المتوافقة مع كود الـ API الجديد
   const handleDelete = async (productionId) => {
+    if (!productionId) {
+        Swal.fire('خطأ', 'لم يتم العثور على معرف لهذا السجل', 'error');
+        return;
+    }
+
     const result = await Swal.fire({
       title: 'هل أنت متأكد؟',
-      text: "سيتم حذف هذا السجل نهائياً من قاعدة البيانات!",
+      text: "سيتم حذف سجل الإنتاج هذا نهائياً من قاعدة البيانات!",
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
@@ -60,23 +64,32 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
 
     if (result.isConfirmed) {
       try {
-        // إرسال طلب الحذف الفعلي لقاعدة البيانات
-        await CapacitorHttp.delete({
-          url: `https://maamoul-one.vercel.app/api/production/${productionId}`
+        // نستخدم POST لأنه الأضمن في إرسال البيانات (collectionName & id) للـ API الخاص بك
+        const response = await CapacitorHttp.post({
+          url: `https://maamoul-one.vercel.app/api/production`, // الرابط العام للـ API
+          headers: { 'Content-Type': 'application/json' },
+          data: { 
+            collectionName: 'production', // تحديد اسم الجدول
+            id: productionId             // إرسال المعرف
+          }
         });
         
-        Swal.fire({
-          title: 'تم الحذف!',
-          text: 'تمت إزالة السجل بنجاح من قاعدة البيانات.',
-          icon: 'success',
-          timer: 1500,
-          showConfirmButton: false
-        }).then(() => {
-          // إعادة تحميل لتحديث البيانات
-          window.location.reload(); 
-        });
+        if (response.data && response.data.success) {
+            Swal.fire({
+              title: 'تم الحذف!',
+              text: 'تمت إزالة السجل بنجاح.',
+              icon: 'success',
+              timer: 1500,
+              showConfirmButton: false
+            }).then(() => {
+              window.location.reload(); 
+            });
+        } else {
+            throw new Error(response.data?.message || 'فشل الحذف');
+        }
       } catch (error) {
-        Swal.fire('خطأ', 'فشل عملية الحذف من الخادم، يرجى المحاولة لاحقاً', 'error');
+        console.error("Delete Error:", error);
+        Swal.fire('خطأ', 'فشل الحذف.. تأكد من تحديث كود الـ API على Vercel', 'error');
       }
     }
   };
@@ -90,24 +103,19 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
     setIsAiLoading(true);
     try {
       const contextData = productionHistory.slice(-10).map(p => ({
-        date: p.date,
-        cost: p.totalActualCost,
+        date: p.date, cost: p.totalActualCost,
         qty: p.products?.reduce((s, pr) => s + (parseFloat(pr.quantity) || 0), 0)
       }));
 
       const response = await CapacitorHttp.post({
         url: 'https://maamoul-one.vercel.app/api/raqqa-ai',
         headers: { 'Content-Type': 'application/json' },
-        data: { 
-          prompt: `حلل أداء الإنتاج لمصنع المعمول بناءً على هذه البيانات: ${JSON.stringify(contextData)}` 
-        }
+        data: { prompt: `حلل أداء الإنتاج لمصنع المعمول بناءً على هذه البيانات: ${JSON.stringify(contextData)}` }
       });
-
-      const aiMessage = response.data?.message || "المحلل الذكي يراجع البيانات، حاول مجدداً.";
 
       Swal.fire({
         title: '🤖 تحليل زاد الخير الذكي',
-        text: aiMessage,
+        text: response.data?.message || "المحلل الذكي يراجع البيانات، حاول مجدداً.",
         icon: 'success',
         confirmButtonText: 'حسناً'
       });
@@ -126,10 +134,9 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
   return (
     <div style={{ direction: 'rtl', fontFamily: 'Tajawal, sans-serif' }}>
       
-      {/* الهيدر العلوي */}
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <img src={LogoImage} alt="Zad Al Khair Logo" style={{ width: '45px', height: '45px', borderRadius: '10px' }} />
+          <img src={LogoImage} alt="Logo" style={{ width: '45px', height: '45px', borderRadius: '10px' }} />
           <div>
             <h1 style={{ fontSize: '1.3rem', color: '#1e293b', margin: 0, fontWeight: '900' }}>زاد <span style={{ color: '#e67e22' }}>الخير</span></h1>
             <p style={{ color: '#64748b', fontSize: '10px', margin: 0 }}>للصناعات الغذائية</p>
@@ -137,8 +144,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button onClick={analyzeWithAI} disabled={isAiLoading} style={aiButtonStyle}>
-            {isAiLoading ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} 
-            AI
+            {isAiLoading ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} AI
           </button>
           <button onClick={generateTodayReport} style={reportButtonStyle}>
             <BarChart3 size={14} /> التقرير
@@ -146,23 +152,18 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
         </div>
       </header>
 
-      {/* الرسم البياني */}
       <div style={cardStyle}>
-        <h3 style={cardTitleStyle}>
-          <TrendingUp size={18} color="#e67e22" /> منحنى الإنتاج الأخير
-        </h3>
+        <h3 style={cardTitleStyle}><TrendingUp size={18} color="#e67e22" /> منحنى الإنتاج الأخير</h3>
         <div style={{ width: '100%', height: 180 }}>
           <ResponsiveContainer>
             <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="colorQty" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#e67e22" stopOpacity={0.2}/>
-                  <stop offset="95%" stopColor="#e67e22" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#e67e22" stopOpacity={0.2}/><stop offset="95%" stopColor="#e67e22" stopOpacity={0}/>
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="name" axisLine={false} tickLine={false} style={{fontSize: '10px'}} />
-              <YAxis hide />
               <Tooltip />
               <Area type="monotone" dataKey="كمية" stroke="#e67e22" strokeWidth={3} fill="url(#colorQty)" />
             </AreaChart>
@@ -170,35 +171,25 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
         </div>
       </div>
 
-      {/* الأقسام */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px', marginBottom: '25px' }}>
         {sections.map((sec) => (
-          <div 
-            key={sec.id} 
-            onClick={() => setActivePage(sec.id)} 
-            style={{ ...menuItemStyle, borderRight: `6px solid ${sec.color}` }}
-          >
+          <div key={sec.id} onClick={() => setActivePage(sec.id)} style={{ ...menuItemStyle, borderRight: `6px solid ${sec.color}` }}>
             <div style={{ color: sec.color, marginBottom: '10px' }}>{sec.icon}</div>
             <div>
               <div style={{ fontWeight: 'bold', fontSize: '15px', color: '#1e293b' }}>{sec.title}</div>
-              <div style={{ fontSize: '10px', color: '#94a3b8' }}>
-                {sec.id === 'inventory' ? `${stock.length} صنف مسجل` : sec.desc}
-              </div>
+              <div style={{ fontSize: '10px', color: '#94a3b8' }}>{sec.id === 'inventory' ? `${stock.length} صنف مسجل` : sec.desc}</div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* جدول العمليات الأخير */}
       <div style={cardStyle}>
-        <h3 style={cardTitleStyle}>
-          <Calendar size={18} color="#3498db" /> تفاصيل آخر عمليات الإنتاج
-        </h3>
+        <h3 style={cardTitleStyle}><Calendar size={18} color="#3498db" /> تفاصيل آخر عمليات الإنتاج</h3>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right', minWidth: '400px' }}>
             <thead>
               <tr style={{ color: '#94a3b8', fontSize: '11px', borderBottom: '1px solid #f1f5f9' }}>
-                <th style={{ padding: '10px 5px' }}>التاريخ والوقت</th>
+                <th style={{ padding: '10px 5px' }}>التاريخ</th>
                 <th style={{ padding: '10px 5px' }}>المنتج</th>
                 <th style={{ padding: '10px 5px' }}>الكمية</th>
                 <th style={{ padding: '10px 5px' }}>الإجمالي</th>
@@ -207,26 +198,20 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
             </thead>
             <tbody>
               {productionHistory.slice(-5).reverse().map((log, idx) => (
-                <tr key={log.id || idx} style={{ fontSize: '12px', borderBottom: '1px solid #f8fafc' }}>
+                <tr key={log.id || log._id || idx} style={{ fontSize: '12px', borderBottom: '1px solid #f8fafc' }}>
                   <td style={{ padding: '10px 5px', color: '#64748b' }}>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span>{log.date}</span>
                       <span style={{ fontSize: '10px', color: '#94a3b8' }}><Clock size={10} /> {log.shift || 'الوردية'}</span>
                     </div>
                   </td>
-                  <td style={{ padding: '10px 5px', fontWeight: 'bold', color: '#1e293b' }}>
-                    {log.products?.[0]?.name || 'غير محدد'}
-                  </td>
-                  <td style={{ padding: '10px 5px' }}>
-                    {log.products?.[0]?.quantity || 0} كرتونة
-                  </td>
-                  <td style={{ padding: '10px 5px', color: '#10b981', fontWeight: 'bold' }}>
-                    {log.totalActualCost} ج
-                  </td>
+                  <td style={{ padding: '10px 5px', fontWeight: 'bold', color: '#1e293b' }}>{log.products?.[0]?.name || 'غير محدد'}</td>
+                  <td style={{ padding: '10px 5px' }}>{log.products?.[0]?.quantity || 0} كرتونة</td>
+                  <td style={{ padding: '10px 5px', color: '#10b981', fontWeight: 'bold' }}>{log.totalActualCost} ج</td>
                   <td style={{ padding: '10px 5px' }}>
                     <button 
                       onClick={() => handleDelete(log.id || log._id)}
-                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '5px' }}
+                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
                     >
                       <Trash2 size={18} />
                     </button>
@@ -242,32 +227,10 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
 };
 
 // التنسيقات
-const cardStyle = {
-  backgroundColor: '#fff', borderRadius: '24px', padding: '20px', 
-  marginBottom: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.02)'
-};
-
-const cardTitleStyle = {
-  fontSize: '15px', marginBottom: '20px', display: 'flex', 
-  alignItems: 'center', gap: '10px', color: '#1e293b', fontWeight: 'bold'
-};
-
-const menuItemStyle = {
-  backgroundColor: '#fff', borderRadius: '20px', padding: '20px', 
-  display: 'flex', flexDirection: 'column', justifyContent: 'center',
-  boxShadow: '0 4px 12px rgba(0,0,0,0.03)', cursor: 'pointer', transition: '0.2s'
-};
-
-const aiButtonStyle = {
-  background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', 
-  color: '#fff', border: 'none', padding: '10px 14px', borderRadius: '12px', 
-  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', fontSize: '12px'
-};
-
-const reportButtonStyle = {
-  background: '#1e293b', color: '#fff', border: 'none', 
-  padding: '10px 14px', borderRadius: '12px', cursor: 'pointer', 
-  display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '500', fontSize: '12px'
-};
+const cardStyle = { backgroundColor: '#fff', borderRadius: '24px', padding: '20px', marginBottom: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.02)' };
+const cardTitleStyle = { fontSize: '15px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#1e293b', fontWeight: 'bold' };
+const menuItemStyle = { backgroundColor: '#fff', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', cursor: 'pointer' };
+const aiButtonStyle = { background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', color: '#fff', border: 'none', padding: '10px 14px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', fontSize: '12px' };
+const reportButtonStyle = { background: '#1e293b', color: '#fff', border: 'none', padding: '10px 14px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '500', fontSize: '12px' };
 
 export default Dashboard;
