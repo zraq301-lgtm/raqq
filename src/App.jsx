@@ -144,25 +144,40 @@ const App = () => {
     await syncData('stock', updatedStock);
   };
 
+  // --- دالة الحذف المعدلة للحذف اللحظي ---
   const handleDelete = async (id, type) => {
     if (type === 'stock') {
-      setStock(prev => prev.filter(item => (item.id !== id && item._id !== id)));
+      // 1. تحديث الـ State فوراً
+      const updatedStock = stock.filter(item => (item.id !== id && item._id !== id));
+      setStock(updatedStock);
+      // 2. تحديث الذاكرة المحلية فوراً لضمان عدم عودة البيانات عند إعادة التشغيل
+      await storage.save('stock', updatedStock);
+      
       try {
         await CapacitorHttp.post({
           url: API_CONFIG.DELETE,
           headers: { 'Content-Type': 'application/json' },
           data: { collectionName: 'stock', id }
         });
-      } catch (e) {}
+      } catch (e) {
+        console.error("فشل الحذف من السيرفر، سيتم المحاولة لاحقاً.");
+      }
     } else {
-      setProductionHistory(prev => prev.filter(item => (item.id !== id && item._id !== id)));
+      // 1. تحديث الـ State فوراً
+      const updatedHistory = productionHistory.filter(item => (item.id !== id && item._id !== id));
+      setProductionHistory(updatedHistory);
+      // 2. تحديث الذاكرة المحلية فوراً
+      await storage.save('productionHistory', updatedHistory);
+
       try {
         await CapacitorHttp.post({
           url: API_CONFIG.DELETE,
           headers: { 'Content-Type': 'application/json' },
           data: { collectionName: 'productionData', id }
         });
-      } catch (e) {}
+      } catch (e) {
+        console.error("فشل الحذف من السيرفر.");
+      }
     }
   };
 
@@ -200,7 +215,7 @@ const App = () => {
         productionHistory={productionHistory} 
         stock={stock} 
         stats={stats}
-        onDeleteItem={handleDelete} // تم التعديل هنا ليتطابق مع اسم الـ Prop في Dashboard
+        onDeleteItem={handleDelete}
         fetchData={fetchCloudData}
       />
     ),
@@ -209,7 +224,7 @@ const App = () => {
         onBack={() => setActivePage('dashboard')} 
         stock={stock} 
         setStock={setStock} 
-        onDeleteItem={handleDelete} // تم التعديل هنا ليتطابق مع اسم الـ Prop في Inventory
+        onDeleteItem={handleDelete}
         onInventoryEntry={handleSaveInventory} 
       />
     ),
