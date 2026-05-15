@@ -117,16 +117,35 @@ const App = () => {
     }
   };
 
-  // --- دالة حفظ الإنتاج الجديد ---
+  // --- دالة حفظ الإنتاج الجديد (تم التعديل لضمان عدم الاختفاء والترحيل للمخزن) ---
   const handleSaveProduction = async (newProduction) => {
+    // 1. تحديث سجل الإنتاج (إضافة الجديد للقديم لضمان عدم الاختفاء)
     const updatedHistory = [newProduction, ...productionHistory];
     setProductionHistory(updatedHistory);
-    
     await storage.save('productionHistory', updatedHistory);
-    await syncData('productionData', [newProduction]);
+    
+    // 2. ترحيل المنتج النهائي للمخزن تلقائياً
+    let updatedStock = [...stock];
+    if (newProduction.products && newProduction.products.length > 0) {
+      newProduction.products.forEach(p => {
+        const productForStock = {
+          id: Date.now() + Math.random(),
+          name: p.name,
+          balance: parseFloat(p.quantity || 0),
+          price: parseFloat(newProduction.totalActualCost || 0) / parseFloat(p.quantity || 1)
+        };
+        updatedStock = groupItems([...updatedStock, productForStock]);
+      });
+    }
 
-    await storage.save('stock', stock);
-    await syncData('stock', stock);
+    setStock(updatedStock);
+    await storage.save('stock', updatedStock);
+
+    // 3. مزامنة البيانات مع السيرفر (إرسال العملية الجديدة فقط للسجل وتحديث المخزن كاملاً)
+    await syncData('productionData', [newProduction]);
+    await syncData('stock', updatedStock);
+    
+    Swal.fire('تم الحفظ', 'تم تسجيل الإنتاج وتحديث المخزن بنجاح', 'success');
   };
 
   const handleSaveInventory = async (newItem) => {
@@ -147,10 +166,8 @@ const App = () => {
   // --- دالة الحذف المعدلة للحذف اللحظي ---
   const handleDelete = async (id, type) => {
     if (type === 'stock') {
-      // 1. تحديث الـ State فوراً
       const updatedStock = stock.filter(item => (item.id !== id && item._id !== id));
       setStock(updatedStock);
-      // 2. تحديث الذاكرة المحلية فوراً لضمان عدم عودة البيانات عند إعادة التشغيل
       await storage.save('stock', updatedStock);
       
       try {
@@ -160,13 +177,11 @@ const App = () => {
           data: { collectionName: 'stock', id }
         });
       } catch (e) {
-        console.error("فشل الحذف من السيرفر، سيتم المحاولة لاحقاً.");
+        console.error("فشل الحذف من السيرفر.");
       }
     } else {
-      // 1. تحديث الـ State فوراً
       const updatedHistory = productionHistory.filter(item => (item.id !== id && item._id !== id));
       setProductionHistory(updatedHistory);
-      // 2. تحديث الذاكرة المحلية فوراً
       await storage.save('productionHistory', updatedHistory);
 
       try {
