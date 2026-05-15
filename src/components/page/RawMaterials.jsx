@@ -1,5 +1,6 @@
 import React from 'react';
 import { Trash2, Box, Info, Database, CircleDollarSign, AlertTriangle, Loader2 } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 const RawMaterials = ({ categories = [], onDeleteItem }) => {
   
@@ -24,6 +25,26 @@ const RawMaterials = ({ categories = [], onDeleteItem }) => {
       </div>
     );
   }
+
+  // دالة الحذف مع التأكيد (لتتوافق مع محرك App.js)
+  const confirmDelete = (id, name) => {
+    Swal.fire({
+      title: 'هل أنت متأكد؟',
+      text: `سيتم حذف ${name} نهائياً من المخزن`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'نعم، احذف',
+      cancelButtonText: 'إلغاء',
+      reverseButtons: true
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // نرسل النوع 'stock' للمحرك ليتم الحذف من الكولكشن الصحيح
+        onDeleteItem(id, 'stock');
+      }
+    });
+  };
 
   return (
     <div style={{ padding: '10px', direction: 'rtl' }}>
@@ -51,7 +72,7 @@ const RawMaterials = ({ categories = [], onDeleteItem }) => {
                   </h3>
                 </div>
                 <button 
-                  onClick={() => onDeleteItem(itemId, 'stock')}
+                  onClick={() => confirmDelete(itemId, name)}
                   style={deleteBtnStyle}
                 >
                   <Trash2 size={18} color="#ef4444" />
@@ -88,7 +109,7 @@ const RawMaterials = ({ categories = [], onDeleteItem }) => {
   );
 };
 
-// --- التنسيقات ---
+// --- التنسيقات (كما هي دون تغيير) ---
 const cardStyle = {
   background: '#fff',
   padding: '15px',
@@ -113,7 +134,9 @@ const detailItem = {
 };
 
 const deleteBtnStyle = {
-  background: '#fff1f2', border: 'none', padding: '8px', borderRadius: '10px', cursor: 'pointer'
+  background: '#fff1f2', border: 'none', padding: '8px', borderRadius: '10px', cursor: 'pointer',
+  transition: '0.2s',
+  display: 'flex', justifyContent: 'center', alignItems: 'center'
 };
 
 const emptyStateStyle = {
