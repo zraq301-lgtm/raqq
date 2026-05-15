@@ -1,15 +1,13 @@
 import { MongoClient } from "mongodb";
 
-// استخدام المتغير المباشر للاتصال
 const uri = process.env.MONGODB_URI;
 let client;
 let clientPromise;
 
 if (!uri) {
-    throw new Error("الرجاء إضافة MONGODB_URI إلى إعدادات البيئة (Environment Variables)");
+    throw new Error("الرجاء إضافة MONGODB_URI إلى إعدادات البيئة");
 }
 
-// تهيئة الاتصال لبيئة Serverless
 if (!global._mongoClientPromise) {
     client = new MongoClient(uri);
     global._mongoClientPromise = client.connect();
@@ -17,7 +15,6 @@ if (!global._mongoClientPromise) {
 clientPromise = global._mongoClientPromise;
 
 export default async function handler(request, response) {
-    // إعدادات CORS
     response.setHeader('Access-Control-Allow-Origin', '*');
     response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -30,30 +27,29 @@ export default async function handler(request, response) {
         const db = client.db("maamoul_db");
         const { collectionName, data } = request.body;
 
-        // التحقق من وجود البيانات
         if (!collectionName || data === undefined || data === null) {
             return response.status(400).json({ error: 'بيانات ناقصة' });
         }
 
+        // --- التعديل الجوهري لضمان عدم اختفاء البيانات ---
+        
+        // إذا كانت البيانات مصفوفة
         if (Array.isArray(data)) {
-            // التعامل مع المصفوفات الفارغة لمنع خطأ bulkWrite
-            if (data.length === 0) {
-                return response.status(200).json({ 
-                    success: true, 
-                    message: 'لا توجد بيانات للمزامنة (المصفوفة فارغة)',
-                    result: { matchedCount: 0, upsertedCount: 0 } 
-                });
-            }
+            if (data.length === 0) return response.status(200).json({ success: true, message: 'مصفوفة فارغة' });
 
             const operations = data.map(item => {
+                // نستخدم id المنتج أو نولد واحد جديد فوراً لضمان عدم التداخل
+                const uniqueId = item.id || Date.now() + Math.random().toString(36).substr(2, 9);
                 const { _id, ...cleanData } = item; 
                 
                 return {
                     updateOne: {
-                        filter: { id: item.id }, 
+                        // الفلترة بالـ id لضمان عدم التكرار، والـ upsert للإضافة إذا لم يوجد
+                        filter: { id: uniqueId }, 
                         update: { 
                             $set: { 
                                 ...cleanData, 
+                                id: uniqueId, // نؤكد وجود الـ id
                                 updatedAt: new Date() 
                             } 
                         },
@@ -66,12 +62,13 @@ export default async function handler(request, response) {
             return response.status(200).json({ success: true, result });
 
         } else {
-            // التعامل مع كائن واحد فقط (Single Object)
+            // إذا كان كائناً واحداً (عملية إنتاج واحدة)
+            const uniqueId = data.id || Date.now() + Math.random().toString(36).substr(2, 9);
             const { _id, ...cleanData } = data;
             
             const result = await db.collection(collectionName).updateOne(
-                { id: data.id },
-                { $set: { ...cleanData, updatedAt: new Date() } },
+                { id: uniqueId },
+                { $set: { ...cleanData, id: uniqueId, updatedAt: new Date() } },
                 { upsert: true }
             );
             return response.status(200).json({ success: true, result });
