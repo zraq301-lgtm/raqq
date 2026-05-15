@@ -2,11 +2,13 @@ import React from 'react';
 import { Trash2, Box, Info, Database, CircleDollarSign, AlertTriangle, Loader2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
-// 1. تأكد من استقبال onDelete (وليس onDeleteItem) لتطابق كود المحرك القديم
-const RawMaterials = ({ categories = [], onDelete }) => {
+// تم اعتماد onDeleteItem ليتوافق مع Inventory.js و App.js
+const RawMaterials = ({ categories = [], onDeleteItem }) => {
   
+  // 1. تحويل البيانات لمصفوفة لضمان عدم حدوث خطأ Map
   const itemsArray = Array.isArray(categories) ? categories : (categories?.data || []);
 
+  // 2. تصفية الخامات فقط (استبعاد المنتجات النهائية)
   const rawMaterialsList = itemsArray.filter(item => {
     if (!item) return false;
     const nameStr = String(item.name || item.item || "").trim().toLowerCase();
@@ -15,6 +17,7 @@ const RawMaterials = ({ categories = [], onDelete }) => {
            !nameStr.includes("جاهز");
   });
 
+  // 3. حالة التحميل
   if (!itemsArray || itemsArray.length === 0) {
     return (
       <div style={emptyStateStyle}>
@@ -24,24 +27,32 @@ const RawMaterials = ({ categories = [], onDelete }) => {
     );
   }
 
+  // دالة التأكيد والحذف
   const confirmDelete = (id, name) => {
+    // تنبيه تقني للتأكد من وصول المعرف
+    if (!id) {
+      console.error("خطأ: الصنف ليس له معرف (ID)");
+      Swal.fire('خطأ', 'لا يمكن حذف هذا الصنف لعدم وجود معرف رقمي', 'error');
+      return;
+    }
+
     Swal.fire({
       title: 'هل أنت متأكد؟',
-      text: `سيتم حذف ${name} نهائياً`,
+      text: `سيتم حذف "${name}" نهائياً من المخزن والسحابة`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
       cancelButtonColor: '#64748b',
-      confirmButtonText: 'نعم، احذف',
+      confirmButtonText: 'نعم، احذف الآن',
       cancelButtonText: 'إلغاء',
       reverseButtons: true
     }).then((result) => {
       if (result.isConfirmed) {
-        // 2. هنا تم تغييرها لـ onDelete لتسمع في المحرك
-        if (onDelete) {
-          onDelete(id, 'stock');
+        // استدعاء الدالة الممرة من App.js عبر Inventory.js
+        if (onDeleteItem) {
+          onDeleteItem(id, 'stock');
         } else {
-          console.error("خطأ: دالة الحذف غير واصلة للمكون");
+          console.error("خطأ: دالة onDeleteItem غير واصلة للمكون");
         }
       }
     });
@@ -59,6 +70,8 @@ const RawMaterials = ({ categories = [], onDelete }) => {
           const balance = parseFloat(item.balance || item.quantity || 0);
           const price = parseFloat(item.price || 0);
           const totalValue = (balance * price).toFixed(2);
+          
+          // تأكيد استخراج المعرف الصحيح للحذف اللحظي
           const itemId = item._id || item.id;
 
           return (
@@ -75,6 +88,7 @@ const RawMaterials = ({ categories = [], onDelete }) => {
                 <button 
                   onClick={() => confirmDelete(itemId, name)}
                   style={deleteBtnStyle}
+                  title="حذف الصنف"
                 >
                   <Trash2 size={18} color="#ef4444" />
                 </button>
@@ -103,18 +117,46 @@ const RawMaterials = ({ categories = [], onDelete }) => {
         <div style={emptyStateStyle}>
           <AlertTriangle size={40} color="#f59e0b" />
           <p>لم يتم العثور على خامات</p>
+          <small>تأكد من عدم وجود كلمة "معمول" في اسم الخامة</small>
         </div>
       )}
     </div>
   );
 };
 
-// التنسيقات ثابتة كما هي
-const cardStyle = { background: '#fff', padding: '15px', borderRadius: '18px', marginBottom: '15px', boxShadow: '0 4px 10px rgba(0,0,0,0.03)', borderRight: '6px solid #2563eb' };
-const iconWrapper = { width: '32px', height: '32px', borderRadius: '8px', backgroundColor: '#eff6ff', display: 'flex', justifyContent: 'center', alignItems: 'center' };
-const detailsGrid = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px' };
-const detailItem = { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#475569' };
-const deleteBtnStyle = { background: '#fff1f2', border: 'none', padding: '8px', borderRadius: '10px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center' };
-const emptyStateStyle = { textAlign: 'center', padding: '100px 20px', background: '#fff', borderRadius: '20px', color: '#94a3b8', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' };
+// --- التنسيقات ---
+const cardStyle = { 
+  background: '#fff', 
+  padding: '15px', 
+  borderRadius: '18px', 
+  marginBottom: '15px', 
+  boxShadow: '0 4px 10px rgba(0,0,0,0.03)', 
+  borderRight: '6px solid #2563eb' 
+};
+
+const iconWrapper = { 
+  width: '32px', height: '32px', borderRadius: '8px', 
+  backgroundColor: '#eff6ff', display: 'flex', justifyContent: 'center', alignItems: 'center' 
+};
+
+const detailsGrid = { 
+  display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', 
+  backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px' 
+};
+
+const detailItem = { 
+  display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#475569' 
+};
+
+const deleteBtnStyle = { 
+  background: '#fff1f2', border: 'none', padding: '8px', borderRadius: '10px', cursor: 'pointer', 
+  display: 'flex', justifyContent: 'center', alignItems: 'center', transition: '0.2s'
+};
+
+const emptyStateStyle = { 
+  textAlign: 'center', padding: '100px 20px', background: '#fff', 
+  borderRadius: '20px', color: '#94a3b8', display: 'flex', 
+  flexDirection: 'column', alignItems: 'center', gap: '10px' 
+};
 
 export default RawMaterials;
