@@ -12,7 +12,7 @@ import LogoImage from '../services/icon-foreground.png';
 const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = {}, fetchData, onDeleteItem }) => {
   const [isAiLoading, setIsAiLoading] = useState(false);
 
-  // 1. معالجة بيانات الرسم البياني (آخر 7 أيام فقط للعرض البياني)
+  // 1. معالجة بيانات الرسم البياني
   const chartData = useMemo(() => {
     if (!productionHistory || !Array.isArray(productionHistory)) return [];
     return productionHistory.map(item => ({
@@ -22,10 +22,8 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
     })).slice(-7); 
   }, [productionHistory]);
 
-  // دالة الحذف
   const handleDeleteProduction = async (id) => {
     if (!id) return;
-
     const result = await Swal.fire({
       title: 'تأكيد الحذف',
       text: "هل تريد حذف سجل الإنتاج هذا نهائياً؟",
@@ -47,12 +45,9 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
              headers: { 'Content-Type': 'application/json' },
              data: { collectionName: 'production', id: id }
            });
-
            if (response.data && response.data.success) {
              Swal.fire('تم الحذف', 'تم مسح السجل بنجاح', 'success');
              if (fetchData) await fetchData();
-           } else {
-             throw new Error("فشل الحذف من السيرفر");
            }
         }
       } catch (error) {
@@ -84,7 +79,6 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
         Swal.fire('تنبيه', 'لا توجد بيانات كافية للتحليل حالياً', 'warning');
         return;
     }
-    
     setIsAiLoading(true);
     try {
       const analysisContext = {
@@ -92,24 +86,14 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
         inventoryStatus: stock.map(s => ({ item: s.name, balance: s.balance })),
         lowStockItems: stock.filter(s => s.balance < 5).map(s => s.name)
       };
-
       const response = await CapacitorHttp.post({
         url: 'https://maamoul-one.vercel.app/api/raqqa-ai',
         headers: { 'Content-Type': 'application/json' },
-        data: { 
-            prompt: `أنت مساعد ذكي لمصنع "زاد الخير". بناءً على هذه البيانات: ${JSON.stringify(analysisContext)}، قدم نصيحة واحدة سريعة ومختصرة جداً عن الإنتاج أو المخزن.` 
-        }
+        data: { prompt: `نصيحة مختصرة لمصنع زاد الخير بناء على: ${JSON.stringify(analysisContext)}` }
       });
-
-      Swal.fire({ 
-        title: '🤖 تحليل زاد الخير الذكي', 
-        text: response.data?.message || response.data?.reply || "المصنع يعمل بشكل مستقر حالياً، استمر على هذا الأداء!",
-        icon: 'success',
-        confirmButtonText: 'فهمت'
-      });
+      Swal.fire({ title: '🤖 تحليل الذكاء الصناعي', text: response.data?.message || "مستقر", icon: 'success' });
     } catch (error) {
-      console.error("AI Error:", error);
-      Swal.fire('عذراً', 'الذكاء الصناعي مشغول حالياً، حاول مرة أخرى لاحقاً', 'error');
+      Swal.fire('عذراً', 'الذكاء الصناعي مشغول', 'error');
     } finally {
       setIsAiLoading(false);
     }
@@ -141,19 +125,14 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
       </header>
 
       <div style={cardStyle}>
-        <h3 style={cardTitleStyle}><TrendingUp size={18} color="#e67e22" /> منحنى الإنتاج الأخير</h3>
+        <h3 style={cardTitleStyle}><TrendingUp size={18} color="#e67e22" /> منحنى الإنتاج</h3>
         <div style={{ width: '100%', height: 180 }}>
           <ResponsiveContainer>
             <AreaChart data={chartData}>
-              <defs>
-                <linearGradient id="colorQty" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#e67e22" stopOpacity={0.2}/><stop offset="95%" stopColor="#e67e22" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} style={{fontSize: '10px'}} />
+              <XAxis dataKey="name" style={{fontSize: '10px'}} />
               <Tooltip />
-              <Area type="monotone" dataKey="كمية" stroke="#e67e22" strokeWidth={3} fill="url(#colorQty)" />
+              <Area type="monotone" dataKey="كمية" stroke="#e67e22" fillOpacity={0.1} fill="#e67e22" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -163,10 +142,8 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
         {sections.map((sec) => (
           <div key={sec.id} onClick={() => setActivePage(sec.id)} style={{ ...menuItemStyle, borderRight: `6px solid ${sec.color}` }}>
             <div style={{ color: sec.color, marginBottom: '10px' }}>{sec.icon}</div>
-            <div>
-              <div style={{ fontWeight: 'bold', fontSize: '15px', color: '#1e293b' }}>{sec.title}</div>
-              <div style={{ fontSize: '10px', color: '#94a3b8' }}>{sec.id === 'inventory' ? `${stock.length} صنف مسجل` : sec.desc}</div>
-            </div>
+            <div style={{ fontWeight: 'bold', fontSize: '15px', color: '#1e293b' }}>{sec.title}</div>
+            <div style={{ fontSize: '10px', color: '#94a3b8' }}>{sec.id === 'inventory' ? `${stock.length} صنف` : sec.desc}</div>
           </div>
         ))}
       </div>
@@ -177,45 +154,46 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right', minWidth: '600px' }}>
             <thead>
               <tr style={{ color: '#94a3b8', fontSize: '11px', borderBottom: '1px solid #f1f5f9' }}>
-                <th style={{ padding: '10px 5px' }}>التاريخ والوقت</th>
+                <th style={{ padding: '10px 5px' }}>التاريخ</th>
                 <th style={{ padding: '10px 5px' }}>المنتج</th>
-                <th style={{ padding: '10px 5px' }}>الكمية (كرتونة)</th>
+                <th style={{ padding: '10px 5px' }}>الكمية</th>
                 <th style={{ padding: '10px 5px' }}>سعر الكرتونة</th>
-                <th style={{ padding: '10px 5px' }}>مجمل السعر</th>
+                <th style={{ padding: '10px 5px' }}>الإجمالي</th>
                 <th style={{ padding: '10px 5px' }}>حذف</th>
               </tr>
             </thead>
             <tbody>
-              {/* تم إزالة slice لضمان عرض جميع البيانات و reverse لعرض الأحدث أولاً */}
-              {[...productionHistory].reverse().map((log, idx) => {
-                const logId = log._id || log.id;
-                const totalQty = log.products?.reduce((sum, p) => sum + (parseFloat(p.quantity) || 0), 0) || 0;
-                const totalCost = parseFloat(log.totalActualCost || 0);
-                const unitPrice = totalQty > 0 ? (totalCost / totalQty).toFixed(2) : 0;
-                
-                return (
-                  <tr key={logId || idx} style={{ fontSize: '12px', borderBottom: '1px solid #f8fafc' }}>
-                    <td style={{ padding: '10px 5px', color: '#64748b' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span>{log.date}</span>
-                        <span style={{ fontSize: '10px', color: '#94a3b8' }}><Clock size={10} /> {log.shift || 'الوردية'}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: '10px 5px', fontWeight: 'bold' }}>{log.products?.[0]?.name || 'منتج نهائي'}</td>
-                    <td style={{ padding: '10px 5px' }}>{totalQty} كرتونة</td>
-                    <td style={{ padding: '10px 5px', color: '#10b981' }}>{unitPrice} ج.م</td>
-                    <td style={{ padding: '10px 5px', fontWeight: 'bold', color: '#e67e22' }}>{totalCost.toFixed(2)} ج.م</td>
-                    <td style={{ padding: '10px 5px' }}>
-                      <button 
-                        onClick={() => handleDeleteProduction(logId)}
-                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+              {/* التعديل الجوهري هنا: عرض كافة العناصر من productionHistory دون قص */}
+              {productionHistory && productionHistory.length > 0 ? (
+                [...productionHistory].reverse().map((log, idx) => {
+                  const logId = log._id || log.id;
+                  const totalQty = log.products?.reduce((sum, p) => sum + (parseFloat(p.quantity) || 0), 0) || 0;
+                  const totalCost = parseFloat(log.totalActualCost || 0);
+                  const unitPrice = totalQty > 0 ? (totalCost / totalQty).toFixed(2) : 0;
+                  
+                  return (
+                    <tr key={logId || idx} style={{ fontSize: '12px', borderBottom: '1px solid #f8fafc' }}>
+                      <td style={{ padding: '10px 5px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontWeight: 'bold' }}>{log.date}</span>
+                          <span style={{ fontSize: '10px', color: '#94a3b8' }}><Clock size={10} /> {log.shift || 'وردية'}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '10px 5px' }}>{log.products?.[0]?.name || 'منتج'}</td>
+                      <td style={{ padding: '10px 5px' }}>{totalQty} كرتونة</td>
+                      <td style={{ padding: '10px 5px', color: '#10b981' }}>{unitPrice} ج.م</td>
+                      <td style={{ padding: '10px 5px', fontWeight: 'bold', color: '#e67e22' }}>{totalCost.toFixed(2)} ج.م</td>
+                      <td style={{ padding: '10px 5px' }}>
+                        <button onClick={() => handleDeleteProduction(logId)} style={{ background: 'none', border: 'none', color: '#ef4444' }}>
+                          <Trash2 size={18} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr><td colSpan="6" style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>لا توجد بيانات إنتاج حالياً</td></tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -224,10 +202,9 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
   );
 };
 
-// الأنماط الثابتة
 const cardStyle = { backgroundColor: '#fff', borderRadius: '24px', padding: '20px', marginBottom: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.02)' };
 const cardTitleStyle = { fontSize: '15px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#1e293b', fontWeight: 'bold' };
-const menuItemStyle = { backgroundColor: '#fff', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', cursor: 'pointer' };
+const menuItemStyle = { backgroundColor: '#fff', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', cursor: 'pointer' };
 const aiButtonStyle = { background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', color: '#fff', border: 'none', padding: '10px 14px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', fontSize: '12px' };
 const reportButtonStyle = { background: '#1e293b', color: '#fff', border: 'none', padding: '10px 14px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '500', fontSize: '12px' };
 
