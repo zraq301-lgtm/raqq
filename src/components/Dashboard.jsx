@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { 
   ShoppingCart, Tag, Factory, Warehouse, 
-  BarChart3, TrendingUp, Calendar, BrainCircuit, Loader2, Clock, Trash2
+  BarChart3, TrendingUp, Calendar, BrainCircuit, Loader2, Clock, Trash2, Banknote
 } from 'lucide-react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { CapacitorHttp } from '@capacitor/core';
@@ -79,7 +79,6 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
     });
   };
 
-  // --- تفعيل زرار الذكاء الصناعي ---
   const analyzeWithAI = async () => {
     if (!productionHistory.length && !stock.length) {
         Swal.fire('تنبيه', 'لا توجد بيانات كافية للتحليل حالياً', 'warning');
@@ -88,7 +87,6 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
     
     setIsAiLoading(true);
     try {
-      // تجهيز ملخص البيانات للذكاء الصناعي ليفهم حالة المصنع
       const analysisContext = {
         recentProduction: productionHistory.slice(-5).map(p => ({ date: p.date, cost: p.totalActualCost })),
         inventoryStatus: stock.map(s => ({ item: s.name, balance: s.balance })),
@@ -103,7 +101,6 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
         }
       });
 
-      // عرض النتيجة بشكل جمالي
       Swal.fire({ 
         title: '🤖 تحليل زاد الخير الذكي', 
         text: response.data?.message || response.data?.reply || "المصنع يعمل بشكل مستقر حالياً، استمر على هذا الأداء!",
@@ -175,20 +172,26 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
       </div>
 
       <div style={cardStyle}>
-        <h3 style={cardTitleStyle}><Calendar size={18} color="#3498db" /> تفاصيل آخر عمليات الإنتاج</h3>
+        <h3 style={cardTitleStyle}><Calendar size={18} color="#3498db" /> سجل الإنتاج الكامل</h3>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right', minWidth: '400px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right', minWidth: '600px' }}>
             <thead>
               <tr style={{ color: '#94a3b8', fontSize: '11px', borderBottom: '1px solid #f1f5f9' }}>
-                <th style={{ padding: '10px 5px' }}>التاريخ</th>
+                <th style={{ padding: '10px 5px' }}>التاريخ والوقت</th>
                 <th style={{ padding: '10px 5px' }}>المنتج</th>
-                <th style={{ padding: '10px 5px' }}>الكمية</th>
+                <th style={{ padding: '10px 5px' }}>الكمية (كرتونة)</th>
+                <th style={{ padding: '10px 5px' }}>سعر الكرتونة</th>
+                <th style={{ padding: '10px 5px' }}>مجمل السعر</th>
                 <th style={{ padding: '10px 5px' }}>حذف</th>
               </tr>
             </thead>
             <tbody>
-              {productionHistory.slice(-5).reverse().map((log, idx) => {
+              {[...productionHistory].reverse().map((log, idx) => {
                 const logId = log._id || log.id;
+                const totalQty = log.products?.reduce((sum, p) => sum + (parseFloat(p.quantity) || 0), 0) || 0;
+                const totalCost = parseFloat(log.totalActualCost || 0);
+                const unitPrice = totalQty > 0 ? (totalCost / totalQty).toFixed(2) : 0;
+                
                 return (
                   <tr key={logId || idx} style={{ fontSize: '12px', borderBottom: '1px solid #f8fafc' }}>
                     <td style={{ padding: '10px 5px', color: '#64748b' }}>
@@ -197,8 +200,10 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
                         <span style={{ fontSize: '10px', color: '#94a3b8' }}><Clock size={10} /> {log.shift || 'الوردية'}</span>
                       </div>
                     </td>
-                    <td style={{ padding: '10px 5px', fontWeight: 'bold' }}>{log.products?.[0]?.name || 'معمول جاهز'}</td>
-                    <td style={{ padding: '10px 5px' }}>{log.products?.[0]?.quantity || 0} كرتونة</td>
+                    <td style={{ padding: '10px 5px', fontWeight: 'bold' }}>{log.products?.[0]?.name || 'منتج نهائي'}</td>
+                    <td style={{ padding: '10px 5px' }}>{totalQty} كرتونة</td>
+                    <td style={{ padding: '10px 5px', color: '#10b981' }}>{unitPrice} ج.م</td>
+                    <td style={{ padding: '10px 5px', fontWeight: 'bold', color: '#e67e22' }}>{totalCost.toFixed(2)} ج.م</td>
                     <td style={{ padding: '10px 5px' }}>
                       <button 
                         onClick={() => handleDeleteProduction(logId)}
