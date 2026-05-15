@@ -17,32 +17,38 @@ if (process.env.NODE_ENV === "development") {
 }
 
 export default async function handler(request, response) {
+  // تحديث السماح بالعمليات ليشمل DELETE و POST
   response.setHeader('Access-Control-Allow-Origin', '*');
-  response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  response.setHeader('Access-Control-Allow-Methods', 'POST, DELETE, OPTIONS');
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (request.method === 'OPTIONS') return response.status(200).end();
-  if (request.method !== 'POST') return response.status(405).json({ error: 'Method not allowed' });
+
+  // السماح بـ POST أو DELETE
+  if (request.method !== 'POST' && request.method !== 'DELETE') {
+    return response.status(405).json({ error: 'Method not allowed' });
+  }
 
   try {
-    const { collectionName, id, name } = request.body; // أضفنا Name كخيار احتياطي
+    // في حالة DELETE قد تأتي البيانات في الـ Body أو الـ Query
+    const collectionName = request.body.collectionName || request.query.collectionName || "production";
+    const id = request.body.id || request.query.id || request.url.split('/').pop();
+    const name = request.body.name || request.query.name;
 
     const client = await clientPromise;
     const db = client.db("maamoul_db");
 
-    // بناء مصفوفة شروط البحث (بكل الطرق الممكنة)
+    // بناء مصفوفة شروط البحث
     let queryConditions = [
       { id: id },
       { id: isNaN(id) ? id : parseFloat(id) },
       { _id: id }
     ];
 
-    // إضافة شرط الـ ObjectId إذا كان صالحاً
     if (id && ObjectId.isValid(id)) {
       queryConditions.push({ _id: new ObjectId(id) });
     }
 
-    // القوة الإضافية: إذا أرسلت الاسم مع الطلب، سيبحث به أيضاً كحل أخير
     if (name) {
       queryConditions.push({ name: name.trim() });
       queryConditions.push({ item: name.trim() });
@@ -55,8 +61,7 @@ export default async function handler(request, response) {
     if (result.deletedCount >= 1) {
       return response.status(200).json({ success: true, message: "تم الحذف بنجاح" });
     } else {
-      // إذا فشل الحذف بالـ ID، نحاول الحذف بالاسم مباشرة (لحل مشكلة "دقيق")
-      // سنقوم ببحث أخير بالاسم فقط في حال كان id نصياً يشبه الأسماء
+      // محاولة أخيرة بالاسم
       const finalTry = await db.collection(collectionName).deleteOne({
         $or: [{ name: id }, { item: id }]
       });
@@ -65,7 +70,7 @@ export default async function handler(request, response) {
         return response.status(200).json({ success: true, message: "تم الحذف بواسطة الاسم" });
       }
 
-      return response.status(404).json({ success: false, message: "العنصر غير موجود" });
+      return response.status(404).json({ success: false, message: "العنصر غير موجود في قاعدة البيانات" });
     }
   } catch (error) {
     return response.status(500).json({ error: error.message });
