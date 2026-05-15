@@ -9,7 +9,6 @@ import Swal from 'sweetalert2';
 
 import LogoImage from '../services/icon-foreground.png';
 
-// الدخول مباشرة في صلب الموضوع: أضفنا onDeleteItem لربطها بـ App.jsx
 const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = {}, fetchData, onDeleteItem }) => {
   const [isAiLoading, setIsAiLoading] = useState(false);
 
@@ -23,7 +22,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
     })).slice(-7); 
   }, [productionHistory]);
 
-  // دالة الحذف الذكية: تم ضبطها لتتوافق مع نظام onDeleteItem المركزي
+  // دالة الحذف الذكية
   const handleDeleteProduction = async (id) => {
     if (!id) return;
 
@@ -40,13 +39,9 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
 
     if (result.isConfirmed) {
       try {
-        // نستخدم نظام الحذف الموحد (onDeleteItem) الذي أثبت نجاحه في الخامات
-        // بتبسيط العملية وإرسال 'production' كـ collectionName
         if (typeof onDeleteItem === 'function') {
            await onDeleteItem(id, 'production');
-           // لا نحتاج لـ Swal success هنا لأنها غالباً ما تكون مدمجة في onDeleteItem بالأب
         } else {
-           // في حال عدم وجود onDeleteItem، نستخدم الـ API المباشر
            const response = await CapacitorHttp.post({
              url: `https://maamoul-one.vercel.app/api/production`, 
              headers: { 'Content-Type': 'application/json' },
@@ -84,22 +79,40 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
     });
   };
 
+  // --- تفعيل زرار الذكاء الصناعي ---
   const analyzeWithAI = async () => {
-    if (!productionHistory.length) return;
+    if (!productionHistory.length && !stock.length) {
+        Swal.fire('تنبيه', 'لا توجد بيانات كافية للتحليل حالياً', 'warning');
+        return;
+    }
+    
     setIsAiLoading(true);
     try {
-      const contextData = productionHistory.slice(-10).map(p => ({
-        date: p.date, cost: p.totalActualCost,
-        qty: p.products?.reduce((s, pr) => s + (parseFloat(pr.quantity) || 0), 0)
-      }));
+      // تجهيز ملخص البيانات للذكاء الصناعي ليفهم حالة المصنع
+      const analysisContext = {
+        recentProduction: productionHistory.slice(-5).map(p => ({ date: p.date, cost: p.totalActualCost })),
+        inventoryStatus: stock.map(s => ({ item: s.name, balance: s.balance })),
+        lowStockItems: stock.filter(s => s.balance < 5).map(s => s.name)
+      };
+
       const response = await CapacitorHttp.post({
         url: 'https://maamoul-one.vercel.app/api/raqqa-ai',
         headers: { 'Content-Type': 'application/json' },
-        data: { prompt: `حلل أداء الإنتاج: ${JSON.stringify(contextData)}` }
+        data: { 
+            prompt: `أنت مساعد ذكي لمصنع "زاد الخير". بناءً على هذه البيانات: ${JSON.stringify(analysisContext)}، قدم نصيحة واحدة سريعة ومختصرة جداً عن الإنتاج أو المخزن.` 
+        }
       });
-      Swal.fire({ title: '🤖 تحليل زاد الخير', text: response.data?.message, icon: 'success' });
+
+      // عرض النتيجة بشكل جمالي
+      Swal.fire({ 
+        title: '🤖 تحليل زاد الخير الذكي', 
+        text: response.data?.message || response.data?.reply || "المصنع يعمل بشكل مستقر حالياً، استمر على هذا الأداء!",
+        icon: 'success',
+        confirmButtonText: 'فهمت'
+      });
     } catch (error) {
-      Swal.fire('خطأ', 'فشل الاتصال بالذكاء الاصطناعي', 'error');
+      console.error("AI Error:", error);
+      Swal.fire('عذراً', 'الذكاء الصناعي مشغول حالياً، حاول مرة أخرى لاحقاً', 'error');
     } finally {
       setIsAiLoading(false);
     }
@@ -205,7 +218,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
   );
 };
 
-// الأنماط (Styles) - لم يتم تغيير أي شيء
+// الأنماط الثابتة
 const cardStyle = { backgroundColor: '#fff', borderRadius: '24px', padding: '20px', marginBottom: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.02)' };
 const cardTitleStyle = { fontSize: '15px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#1e293b', fontWeight: 'bold' };
 const menuItemStyle = { backgroundColor: '#fff', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', cursor: 'pointer' };
