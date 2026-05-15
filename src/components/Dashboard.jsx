@@ -23,7 +23,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
     })).slice(-7); 
   }, [productionHistory]);
 
-  // دالة الحذف الذكية: بتكلم الـ API وتحدث الحالة المركزية
+  // دالة الحذف الذكية: تم ضبطها لتتوافق مع نظام onDeleteItem المركزي
   const handleDeleteProduction = async (id) => {
     if (!id) return;
 
@@ -40,11 +40,13 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
 
     if (result.isConfirmed) {
       try {
-        // نستخدم نظام الحذف اللي شغال معاك في صفحة الخامات (onDeleteItem)
-        // لو مش موجود، بنستخدم الـ API المباشر اللي في الكود ده
+        // نستخدم نظام الحذف الموحد (onDeleteItem) الذي أثبت نجاحه في الخامات
+        // بتبسيط العملية وإرسال 'production' كـ collectionName
         if (typeof onDeleteItem === 'function') {
            await onDeleteItem(id, 'production');
+           // لا نحتاج لـ Swal success هنا لأنها غالباً ما تكون مدمجة في onDeleteItem بالأب
         } else {
+           // في حال عدم وجود onDeleteItem، نستخدم الـ API المباشر
            const response = await CapacitorHttp.post({
              url: `https://maamoul-one.vercel.app/api/production`, 
              headers: { 'Content-Type': 'application/json' },
@@ -203,7 +205,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
   );
 };
 
-// الأنماط (Styles) - لم يتم تغيير أي شيء في الشكل
+// الأنماط (Styles) - لم يتم تغيير أي شيء
 const cardStyle = { backgroundColor: '#fff', borderRadius: '24px', padding: '20px', marginBottom: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.02)' };
 const cardTitleStyle = { fontSize: '15px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#1e293b', fontWeight: 'bold' };
 const menuItemStyle = { backgroundColor: '#fff', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', cursor: 'pointer' };
