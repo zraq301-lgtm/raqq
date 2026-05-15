@@ -5,8 +5,8 @@ import RawMaterials from './page/RawMaterials';
 import SupplyEntry from './page/SupplyEntry';
 import FinishedProducts from './page/FinishedProducts';
 
-// التعديل الجوهري: استلام stock بدلاً من categories ليطابق App.jsx
-const Inventory = ({ stock = [], onDelete, onInventoryEntry }) => {
+// تم ضبط المكون لاستلام onDeleteItem ليطابق التمرير من App.jsx
+const Inventory = ({ stock = [], onDeleteItem, onInventoryEntry }) => {
   const [activeTab, setActiveTab] = useState('raw');
 
   // ضمان أننا نتعامل مع مصفوفة دائماً
@@ -53,11 +53,11 @@ const Inventory = ({ stock = [], onDelete, onInventoryEntry }) => {
       </div>
 
       <div style={styles.contentArea}>
-        {/* 1. واجهة الخامات */}
+        {/* 1. واجهة الخامات - تمرير onDeleteItem المأخوذة من المحرك */}
         {activeTab === 'raw' && (
           <RawMaterials 
             categories={dataList} 
-            onDeleteItem={onDelete} 
+            onDeleteItem={onDeleteItem} 
           />
         )}
 
@@ -73,7 +73,7 @@ const Inventory = ({ stock = [], onDelete, onInventoryEntry }) => {
         {activeTab === 'finished' && (
           <FinishedProducts 
             categories={dataList} 
-            onDeleteItem={onDelete} 
+            onDeleteItem={onDeleteItem} 
           />
         )}
       </div>
