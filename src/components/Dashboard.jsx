@@ -12,7 +12,7 @@ import LogoImage from '../services/icon-foreground.png';
 const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = {}, fetchData, onDeleteItem }) => {
   const [isAiLoading, setIsAiLoading] = useState(false);
 
-  // 1. معالجة بيانات الرسم البياني
+  // 1. معالجة بيانات الرسم البياني (آخر 7 أيام فقط للعرض البياني)
   const chartData = useMemo(() => {
     if (!productionHistory || !Array.isArray(productionHistory)) return [];
     return productionHistory.map(item => ({
@@ -22,7 +22,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
     })).slice(-7); 
   }, [productionHistory]);
 
-  // دالة الحذف الذكية
+  // دالة الحذف
   const handleDeleteProduction = async (id) => {
     if (!id) return;
 
@@ -186,6 +186,7 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
               </tr>
             </thead>
             <tbody>
+              {/* تم إزالة slice لضمان عرض جميع البيانات و reverse لعرض الأحدث أولاً */}
               {[...productionHistory].reverse().map((log, idx) => {
                 const logId = log._id || log.id;
                 const totalQty = log.products?.reduce((sum, p) => sum + (parseFloat(p.quantity) || 0), 0) || 0;
