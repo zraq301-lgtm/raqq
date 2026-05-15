@@ -2,12 +2,11 @@ import React from 'react';
 import { Trash2, Box, Info, Database, CircleDollarSign, AlertTriangle, Loader2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
-const RawMaterials = ({ categories = [], onDeleteItem }) => {
+// 1. تأكد من استقبال onDelete (وليس onDeleteItem) لتطابق كود المحرك القديم
+const RawMaterials = ({ categories = [], onDelete }) => {
   
-  // 1. معالجة البيانات: التأكد من أنها مصفوفة (Array) حتى لو جاءت من الـ API بشكل مختلف
   const itemsArray = Array.isArray(categories) ? categories : (categories?.data || []);
 
-  // 2. التصفية الذكية
   const rawMaterialsList = itemsArray.filter(item => {
     if (!item) return false;
     const nameStr = String(item.name || item.item || "").trim().toLowerCase();
@@ -16,7 +15,6 @@ const RawMaterials = ({ categories = [], onDeleteItem }) => {
            !nameStr.includes("جاهز");
   });
 
-  // 3. حالة التحميل أو الفراغ
   if (!itemsArray || itemsArray.length === 0) {
     return (
       <div style={emptyStateStyle}>
@@ -26,11 +24,10 @@ const RawMaterials = ({ categories = [], onDeleteItem }) => {
     );
   }
 
-  // دالة الحذف مع التأكيد (لتتوافق مع محرك App.js)
   const confirmDelete = (id, name) => {
     Swal.fire({
       title: 'هل أنت متأكد؟',
-      text: `سيتم حذف ${name} نهائياً من المخزن`,
+      text: `سيتم حذف ${name} نهائياً`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
@@ -40,8 +37,12 @@ const RawMaterials = ({ categories = [], onDeleteItem }) => {
       reverseButtons: true
     }).then((result) => {
       if (result.isConfirmed) {
-        // نرسل النوع 'stock' للمحرك ليتم الحذف من الكولكشن الصحيح
-        onDeleteItem(id, 'stock');
+        // 2. هنا تم تغييرها لـ onDelete لتسمع في المحرك
+        if (onDelete) {
+          onDelete(id, 'stock');
+        } else {
+          console.error("خطأ: دالة الحذف غير واصلة للمكون");
+        }
       }
     });
   };
@@ -101,48 +102,19 @@ const RawMaterials = ({ categories = [], onDeleteItem }) => {
       ) : (
         <div style={emptyStateStyle}>
           <AlertTriangle size={40} color="#f59e0b" />
-          <p>لم يتم العثور على "خامات" (دقيق، سكر.. إلخ)</p>
-          <small>تأكد أن أسماء الخامات لا تحتوي على كلمة "معمول"</small>
+          <p>لم يتم العثور على خامات</p>
         </div>
       )}
     </div>
   );
 };
 
-// --- التنسيقات (كما هي دون تغيير) ---
-const cardStyle = {
-  background: '#fff',
-  padding: '15px',
-  borderRadius: '18px',
-  marginBottom: '15px',
-  boxShadow: '0 4px 10px rgba(0,0,0,0.03)',
-  borderRight: '6px solid #2563eb',
-};
-
-const iconWrapper = {
-  width: '32px', height: '32px', borderRadius: '8px',
-  backgroundColor: '#eff6ff', display: 'flex', justifyContent: 'center', alignItems: 'center'
-};
-
-const detailsGrid = {
-  display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px',
-  backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px'
-};
-
-const detailItem = {
-  display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#475569'
-};
-
-const deleteBtnStyle = {
-  background: '#fff1f2', border: 'none', padding: '8px', borderRadius: '10px', cursor: 'pointer',
-  transition: '0.2s',
-  display: 'flex', justifyContent: 'center', alignItems: 'center'
-};
-
-const emptyStateStyle = {
-  textAlign: 'center', padding: '100px 20px', background: '#fff',
-  borderRadius: '20px', color: '#94a3b8', display: 'flex',
-  flexDirection: 'column', alignItems: 'center', gap: '10px'
-};
+// التنسيقات ثابتة كما هي
+const cardStyle = { background: '#fff', padding: '15px', borderRadius: '18px', marginBottom: '15px', boxShadow: '0 4px 10px rgba(0,0,0,0.03)', borderRight: '6px solid #2563eb' };
+const iconWrapper = { width: '32px', height: '32px', borderRadius: '8px', backgroundColor: '#eff6ff', display: 'flex', justifyContent: 'center', alignItems: 'center' };
+const detailsGrid = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px' };
+const detailItem = { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#475569' };
+const deleteBtnStyle = { background: '#fff1f2', border: 'none', padding: '8px', borderRadius: '10px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center' };
+const emptyStateStyle = { textAlign: 'center', padding: '100px 20px', background: '#fff', borderRadius: '20px', color: '#94a3b8', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' };
 
 export default RawMaterials;
