@@ -4,12 +4,13 @@ import {
   BarChart3, TrendingUp, Calendar, BrainCircuit, Loader2, Clock, Trash2
 } from 'lucide-react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-// حذفنا CapacitorHttp لأننا سنستخدم الدالة الممررة onDeleteItem
+import { CapacitorHttp } from '@capacitor/core';
+import Swal from 'sweetalert2';
 
 import LogoImage from '../services/icon-foreground.png';
 
-// الحل هنا: نمرر onDeleteItem كبروبس (Props) زي صفحة الخامات بالظبط
-const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = {}, onDeleteItem }) => {
+// الدخول مباشرة في صلب الموضوع: أضفنا onDeleteItem لربطها بـ App.jsx
+const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = {}, fetchData, onDeleteItem }) => {
   const [isAiLoading, setIsAiLoading] = useState(false);
 
   // 1. معالجة بيانات الرسم البياني
@@ -22,21 +23,84 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
     })).slice(-7); 
   }, [productionHistory]);
 
-  // دالة الحذف الجديدة: تنفذ نفس نظام صفحة الخامات
-  const confirmDelete = (id) => {
+  // دالة الحذف الذكية: بتكلم الـ API وتحدث الحالة المركزية
+  const handleDeleteProduction = async (id) => {
     if (!id) return;
-    // استدعاء الدالة المركزية الممررة من App.jsx مع تحديد اسم الجدول 'production'
-    if (onDeleteItem) {
-      onDeleteItem(id, 'production');
+
+    const result = await Swal.fire({
+      title: 'تأكيد الحذف',
+      text: "هل تريد حذف سجل الإنتاج هذا نهائياً؟",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'نعم، احذف',
+      cancelButtonText: 'إلغاء'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        // نستخدم نظام الحذف اللي شغال معاك في صفحة الخامات (onDeleteItem)
+        // لو مش موجود، بنستخدم الـ API المباشر اللي في الكود ده
+        if (typeof onDeleteItem === 'function') {
+           await onDeleteItem(id, 'production');
+        } else {
+           const response = await CapacitorHttp.post({
+             url: `https://maamoul-one.vercel.app/api/production`, 
+             headers: { 'Content-Type': 'application/json' },
+             data: { collectionName: 'production', id: id }
+           });
+
+           if (response.data && response.data.success) {
+             Swal.fire('تم الحذف', 'تم مسح السجل بنجاح', 'success');
+             if (fetchData) await fetchData();
+           } else {
+             throw new Error("فشل الحذف من السيرفر");
+           }
+        }
+      } catch (error) {
+        Swal.fire('خطأ', 'فشل الوصول للـ API', 'error');
+      }
     }
   };
 
-  // 2. تحليل الذكاء الاصطناعي (كما هو)
+  const generateTodayReport = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const todayProd = productionHistory.filter(p => p.date === today);
+    const totalCost = todayProd.reduce((sum, p) => sum + parseFloat(p.totalActualCost || 0), 0);
+    const lowStockCount = stock.filter(i => parseFloat(i.balance || i.quantity || 0) < 5).length;
+
+    Swal.fire({
+      title: '📊 تقرير حالة المصنع',
+      html: `<div style="text-align: right; font-family: 'Tajawal', sans-serif; line-height: 1.8;">
+          <p>📅 إنتاج اليوم: <b>${todayProd.length} وردية</b></p>
+          <p>💰 إجمالي تكلفة اليوم: <b style="color: #e67e22">${totalCost.toFixed(2)} ج.م</b></p>
+          <p>📦 أصناف المخزن: <b>${stock.length} صنف</b></p>
+          <p>⚠️ أصناف أوشكت على النفاذ: <b style="color: #ef4444">${lowStockCount}</b></p>
+        </div>`,
+      icon: 'info', confirmButtonText: 'ممتاز'
+    });
+  };
+
   const analyzeWithAI = async () => {
     if (!productionHistory.length) return;
     setIsAiLoading(true);
-    // ... منطق الـ AI ...
-    setIsAiLoading(false);
+    try {
+      const contextData = productionHistory.slice(-10).map(p => ({
+        date: p.date, cost: p.totalActualCost,
+        qty: p.products?.reduce((s, pr) => s + (parseFloat(pr.quantity) || 0), 0)
+      }));
+      const response = await CapacitorHttp.post({
+        url: 'https://maamoul-one.vercel.app/api/raqqa-ai',
+        headers: { 'Content-Type': 'application/json' },
+        data: { prompt: `حلل أداء الإنتاج: ${JSON.stringify(contextData)}` }
+      });
+      Swal.fire({ title: '🤖 تحليل زاد الخير', text: response.data?.message, icon: 'success' });
+    } catch (error) {
+      Swal.fire('خطأ', 'فشل الاتصال بالذكاء الاصطناعي', 'error');
+    } finally {
+      setIsAiLoading(false);
+    }
   };
 
   const sections = [
@@ -46,7 +110,6 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
 
   return (
     <div style={{ direction: 'rtl', fontFamily: 'Tajawal, sans-serif' }}>
-      
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img src={LogoImage} alt="Logo" style={{ width: '45px', height: '45px', borderRadius: '10px' }} />
@@ -55,9 +118,46 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
             <p style={{ color: '#64748b', fontSize: '10px', margin: 0 }}>للصناعات الغذائية</p>
           </div>
         </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={analyzeWithAI} disabled={isAiLoading} style={aiButtonStyle}>
+            {isAiLoading ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} AI
+          </button>
+          <button onClick={generateTodayReport} style={reportButtonStyle}>
+            <BarChart3 size={14} /> التقرير
+          </button>
+        </div>
       </header>
 
-      {/* ... كود الرسم البياني والسكشنز كما هو ... */}
+      <div style={cardStyle}>
+        <h3 style={cardTitleStyle}><TrendingUp size={18} color="#e67e22" /> منحنى الإنتاج الأخير</h3>
+        <div style={{ width: '100%', height: 180 }}>
+          <ResponsiveContainer>
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id="colorQty" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#e67e22" stopOpacity={0.2}/><stop offset="95%" stopColor="#e67e22" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} style={{fontSize: '10px'}} />
+              <Tooltip />
+              <Area type="monotone" dataKey="كمية" stroke="#e67e22" strokeWidth={3} fill="url(#colorQty)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px', marginBottom: '25px' }}>
+        {sections.map((sec) => (
+          <div key={sec.id} onClick={() => setActivePage(sec.id)} style={{ ...menuItemStyle, borderRight: `6px solid ${sec.color}` }}>
+            <div style={{ color: sec.color, marginBottom: '10px' }}>{sec.icon}</div>
+            <div>
+              <div style={{ fontWeight: 'bold', fontSize: '15px', color: '#1e293b' }}>{sec.title}</div>
+              <div style={{ fontSize: '10px', color: '#94a3b8' }}>{sec.id === 'inventory' ? `${stock.length} صنف مسجل` : sec.desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
 
       <div style={cardStyle}>
         <h3 style={cardTitleStyle}><Calendar size={18} color="#3498db" /> تفاصيل آخر عمليات الإنتاج</h3>
@@ -77,14 +177,17 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
                 return (
                   <tr key={logId || idx} style={{ fontSize: '12px', borderBottom: '1px solid #f8fafc' }}>
                     <td style={{ padding: '10px 5px', color: '#64748b' }}>
-                      <span>{log.date}</span>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span>{log.date}</span>
+                        <span style={{ fontSize: '10px', color: '#94a3b8' }}><Clock size={10} /> {log.shift || 'الوردية'}</span>
+                      </div>
                     </td>
-                    <td style={{ padding: '10px 5px', fontWeight: 'bold' }}>{log.products?.[0]?.name || 'معمول'}</td>
+                    <td style={{ padding: '10px 5px', fontWeight: 'bold' }}>{log.products?.[0]?.name || 'معمول جاهز'}</td>
                     <td style={{ padding: '10px 5px' }}>{log.products?.[0]?.quantity || 0} كرتونة</td>
                     <td style={{ padding: '10px 5px' }}>
                       <button 
-                        onClick={() => confirmDelete(logId)} // استخدام الدالة الموحدة
-                        style={deleteIconBtn}
+                        onClick={() => handleDeleteProduction(logId)}
+                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
                       >
                         <Trash2 size={18} />
                       </button>
@@ -100,7 +203,11 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
   );
 };
 
-const deleteIconBtn = { background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '8px' };
-// بقية التنسيقات (cardStyle, cardTitleStyle, الخ) كما هي في كودك الأصلي...
+// الأنماط (Styles) - لم يتم تغيير أي شيء في الشكل
+const cardStyle = { backgroundColor: '#fff', borderRadius: '24px', padding: '20px', marginBottom: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.02)' };
+const cardTitleStyle = { fontSize: '15px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#1e293b', fontWeight: 'bold' };
+const menuItemStyle = { backgroundColor: '#fff', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', cursor: 'pointer' };
+const aiButtonStyle = { background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', color: '#fff', border: 'none', padding: '10px 14px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', fontSize: '12px' };
+const reportButtonStyle = { background: '#1e293b', color: '#fff', border: 'none', padding: '10px 14px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '500', fontSize: '12px' };
 
 export default Dashboard;
