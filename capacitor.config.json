@@ -1,6 +1,6 @@
 {
-  "appId": "com.mamoul.app",
-  "appName": "معمول",
+  "appId": "com.zadelkhair.app",
+  "appName": "زاد الخير",
   "webDir": "dist",
   "server": {
     "androidScheme": "https",
