@@ -163,7 +163,6 @@ const Dashboard = ({ setActivePage, productionHistory = [], stock = [], stats = 
               </tr>
             </thead>
             <tbody>
-              {/* التعديل الجوهري هنا: عرض كافة العناصر من productionHistory دون قص */}
               {productionHistory && productionHistory.length > 0 ? (
                 [...productionHistory].reverse().map((log, idx) => {
                   const logId = log._id || log.id;
