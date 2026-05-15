@@ -5,11 +5,11 @@ import RawMaterials from './page/RawMaterials';
 import SupplyEntry from './page/SupplyEntry';
 import FinishedProducts from './page/FinishedProducts';
 
-// تم ضبط المكون لاستلام onDeleteItem ليطابق التمرير من App.jsx
+// تم ضبط المكون لاستلام الدوال المطلوبة لضمان الربط الكامل مع المحرك الرئيسي
 const Inventory = ({ stock = [], onDeleteItem, onInventoryEntry }) => {
   const [activeTab, setActiveTab] = useState('raw');
 
-  // ضمان أننا نتعامل مع مصفوفة دائماً
+  // ضمان أننا نتعامل مع مصفوفة دائماً لتجنب أي توقف في التطبيق
   const dataList = Array.isArray(stock) ? stock : [];
 
   const styles = {
@@ -30,7 +30,7 @@ const Inventory = ({ stock = [], onDeleteItem, onInventoryEntry }) => {
 
   return (
     <div style={styles.container}>
-      {/* شريط التنقل العلوي */}
+      {/* شريط التنقل العلوي - التبديل بين الخامات، التوريد، والمنتجات */}
       <div style={styles.tabContainer}>
         <div 
           style={{...styles.tab, ...(activeTab === 'raw' ? styles.activeTab : {})}} 
@@ -53,7 +53,7 @@ const Inventory = ({ stock = [], onDeleteItem, onInventoryEntry }) => {
       </div>
 
       <div style={styles.contentArea}>
-        {/* 1. واجهة الخامات - تمرير onDeleteItem المأخوذة من المحرك */}
+        {/* 1. واجهة الخامات - تمرير بيانات المخزن ودالة الحذف */}
         {activeTab === 'raw' && (
           <RawMaterials 
             categories={dataList} 
@@ -61,7 +61,7 @@ const Inventory = ({ stock = [], onDeleteItem, onInventoryEntry }) => {
           />
         )}
 
-        {/* 2. واجهة تسجيل التوريد */}
+        {/* 2. واجهة تسجيل التوريد - تمرير دالة الحفظ لزيادة المخزن */}
         {activeTab === 'supply' && (
           <SupplyEntry 
             onInventoryEntry={onInventoryEntry} 
@@ -69,7 +69,7 @@ const Inventory = ({ stock = [], onDeleteItem, onInventoryEntry }) => {
           />
         )}
 
-        {/* 3. واجهة المنتجات النهائية */}
+        {/* 3. واجهة المنتجات النهائية - هنا تظهر نتائج الإنتاج (المعمول الجاهز) */}
         {activeTab === 'finished' && (
           <FinishedProducts 
             categories={dataList} 
