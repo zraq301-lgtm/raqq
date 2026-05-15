@@ -200,7 +200,8 @@ const App = () => {
         productionHistory={productionHistory} 
         stock={stock} 
         stats={stats}
-        onDelete={handleDelete} // تمرير دالة الحذف للرئيسية
+        onDeleteItem={handleDelete} // تم التعديل هنا ليتطابق مع اسم الـ Prop في Dashboard
+        fetchData={fetchCloudData}
       />
     ),
     inventory: (
@@ -208,7 +209,7 @@ const App = () => {
         onBack={() => setActivePage('dashboard')} 
         stock={stock} 
         setStock={setStock} 
-        onDelete={handleDelete} 
+        onDeleteItem={handleDelete} // تم التعديل هنا ليتطابق مع اسم الـ Prop في Inventory
         onInventoryEntry={handleSaveInventory} 
       />
     ),
