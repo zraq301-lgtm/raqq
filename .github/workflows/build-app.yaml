@@ -176,8 +176,13 @@ jobs:
           # بناء التطبيق سحابياً بدون توقيع رقمي للتحقق من سلامة الأكواد أولاً
           xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -allowProvisioningUpdates -sdk iphoneos CODE_SIGNING_ALLOWED=NO
 
-      - name: 7. Archive iOS App Artifacts
-        uses: actions/upload-artifact@v4
+      # تم تعديل الخطوة 7 ليقوم برفع ملفات بناء الآيفون كملف مباشر للتحميل المباشر داخل نفس الـ Release
+      - name: 7. Publish iOS to Same Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: ZadElkhair-iOS-XcodeProject
-          path: ios/App
+          tag_name: v${{ github.run_number }}
+          name: "Zad Elkhair Build v${{ github.run_number }}"
+          files: |
+            ios/App
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
